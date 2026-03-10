@@ -85,7 +85,7 @@ export function useThreeScene(containerRef) {
       renderer.setSize(width, height)
       renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2)) // Cap at 2 for performance
       renderer.shadowMap.enabled = true
-      renderer.shadowMap.type = THREE.PCFShadowShadowMap
+      renderer.shadowMap.type = THREE.PCFSoftShadowMap
       rendererRef.current = renderer
       console.log('[THREE] ✓ Renderer created')
 

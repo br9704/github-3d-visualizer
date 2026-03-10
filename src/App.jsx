@@ -9,6 +9,7 @@ import ExportShare from './components/ExportShare'
 import Pagination from './components/Pagination'
 import Header from './components/Header'
 import KeyboardHelpModal from './components/KeyboardHelpModal'
+import FilterSetsManager from './components/FilterSetsManager'
 import { ThemeProvider } from './contexts/ThemeContext'
 import { fetchUserRepos, fetchRepoReadmeBatch } from './utils/githubApi'
 import { calculatePositions } from './utils/positioning'
@@ -154,6 +155,20 @@ function App() {
     setFilteredLanguage(language)
   }, [])
 
+  /**
+   * Handle loading a filter set
+   * Applies saved filter combinations to current view
+   */
+  const handleLoadFilterSet = useCallback((filters) => {
+    if (filters.languages && Array.isArray(filters.languages)) {
+      // Handle language filter from set
+      if (filters.languages.length > 0) {
+        setFilteredLanguage(filters.languages[0])
+      }
+    }
+    // TODO: Extend with framework, author type filters when available
+  }, [])
+
   return (
     <ThemeProvider>
       <div className="app">
@@ -174,6 +189,12 @@ function App() {
           repoCount={repos.length}
           username={username}
         />
+        {repos.length > 0 && (
+          <FilterSetsManager
+            currentFilters={{ languages: filteredLanguage ? [filteredLanguage] : [] }}
+            onLoadSet={handleLoadFilterSet}
+          />
+        )}
         {username && detectedLanguages.length > 0 && (
           <LanguageFilter
             languages={detectedLanguages}

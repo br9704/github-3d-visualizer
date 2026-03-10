@@ -1,4 +1,6 @@
 import { useState } from 'react'
+import UsernameAutocomplete from './UsernameAutocomplete'
+import '../styles/SearchBar.css'
 
 export default function SearchBar({ onSearch, loading, error }) {
   const [username, setUsername] = useState('')
@@ -13,62 +15,47 @@ export default function SearchBar({ onSearch, loading, error }) {
     onSearch(username)
   }
 
+  const handleAutocompleteSelect = (selectedUsername) => {
+    setUsername(selectedUsername)
+    // Auto-search after selection
+    setTimeout(() => onSearch(selectedUsername), 100)
+  }
+
   return (
-    <div
-      style={{
-        position: 'fixed',
-        top: '20px',
-        left: '50%',
-        transform: 'translateX(-50%)',
-        zIndex: 100,
-        background: 'rgba(0, 0, 0, 0.9)',
-        padding: '20px',
-        borderRadius: '8px',
-        border: '1px solid #7c3aed',
-        textAlign: 'center',
-        minWidth: '400px',
-        maxWidth: '600px'
-      }}
-    >
-      <input
-        type="text"
-        value={username}
-        onChange={(e) => setUsername(e.target.value)}
-        onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
-        placeholder="Enter GitHub username..."
-        disabled={loading}
-        style={{
-          padding: '10px 15px',
-          fontSize: '14px',
-          marginRight: '10px',
-          borderRadius: '4px',
-          border: '1px solid #7c3aed',
-          background: '#111',
-          color: '#fff',
-          width: '300px'
-        }}
-      />
-      <button
-        onClick={handleSearch}
-        disabled={loading}
-        style={{
-          padding: '10px 20px',
-          fontSize: '14px',
-          background: loading ? '#555' : '#7c3aed',
-          color: '#fff',
-          border: 'none',
-          borderRadius: '4px',
-          cursor: loading ? 'not-allowed' : 'pointer',
-          fontWeight: 'bold'
-        }}
-      >
-        {loading ? 'Searching...' : 'Visualize'}
-      </button>
+    <div className="search-bar-container">
+      <div className="search-bar-wrapper">
+        <div className="search-input-wrapper">
+          <input
+            type="text"
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
+            placeholder="Enter GitHub username (e.g., torvalds)..."
+            disabled={loading}
+            className="search-input"
+          />
+          <UsernameAutocomplete
+            value={username}
+            onChange={setUsername}
+            onSelect={handleAutocompleteSelect}
+          />
+        </div>
+        <button
+          onClick={handleSearch}
+          disabled={loading}
+          className={`search-button ${loading ? 'loading' : ''}`}
+        >
+          {loading ? '⏳ Searching...' : '🔍 Visualize'}
+        </button>
+      </div>
       {(error || localError) && (
-        <p style={{ color: '#ff6b6b', marginTop: '10px', margin: '10px 0 0 0' }}>
+        <p className="search-error">
           ❌ {error || localError}
         </p>
       )}
+      <p className="search-hint">
+        💡 Tip: Try "torvalds", "octocat", or any GitHub username
+      </p>
     </div>
   )
 }

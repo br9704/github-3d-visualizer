@@ -14,8 +14,8 @@
   --button-hover-bg: rgba(42, 47, 74, 0.9);
   --input-bg: rgba(26, 31, 58, 0.6);
   --modal-bg: rgba(10, 14, 39, 0.95);
-  --accent-1: #00d4ff;
-  --accent-2: #7c3aed;
+  --accent-1: #888888;
+  --accent-2: #666666;
   --text-color: #ffffff;
 }
 
@@ -33,8 +33,8 @@
   --button-hover-bg: rgba(240, 242, 249, 0.95);
   --input-bg: rgba(255, 255, 255, 0.6);
   --modal-bg: rgba(248, 249, 252, 0.95);
-  --accent-1: #0066cc;
-  --accent-2: #6d28d9;
+  --accent-1: #444444;
+  --accent-2: #555555;
   --text-color: #1a1f3a;
 }
 
@@ -82,8 +82,8 @@ body {
   left: 0;
   right: 0;
   bottom: 0;
-  background: radial-gradient(circle at 20% 50%, rgba(0, 212, 255, 0.05) 0%, transparent 50%),
-              radial-gradient(circle at 80% 80%, rgba(124, 58, 237, 0.05) 0%, transparent 50%);
+  background: radial-gradient(circle at 20% 50%, rgba(255, 255, 255, 0.02) 0%, transparent 50%),
+              radial-gradient(circle at 80% 80%, rgba(128, 128, 128, 0.03) 0%, transparent 50%);
   pointer-events: none;
   z-index: 1;
 }

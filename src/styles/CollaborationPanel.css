@@ -1,0 +1,576 @@
+/**
+ * CollaborationPanel.css
+ * Styles for the Collaboration Features (v4/feature-5)
+ * Covers share URL, snapshots, and repo comments/annotations
+ */
+
+/* ========================================
+   Container
+   ======================================== */
+.collaboration-panel {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 480px;
+  max-width: calc(100vw - 24px);
+  max-height: 80vh;
+  background: var(--panel-bg, rgba(15, 15, 20, 0.93));
+  border: 1px solid var(--border-color, rgba(16, 185, 129, 0.3));
+  border-radius: 14px;
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  z-index: 200;
+  overflow: hidden;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  color: var(--text-primary, #e0e0e0);
+  box-shadow: 0 8px 40px rgba(16, 185, 129, 0.12);
+}
+
+/* ========================================
+   Header
+   ======================================== */
+.collab-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 13px 16px;
+  background: rgba(16, 185, 129, 0.12);
+  cursor: pointer;
+  user-select: none;
+  border-bottom: 1px solid rgba(16, 185, 129, 0.2);
+  transition: background 0.2s ease;
+}
+
+.collab-header:hover {
+  background: rgba(16, 185, 129, 0.2);
+}
+
+.collab-header-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.collab-header-title {
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.collab-header-badges {
+  display: flex;
+  gap: 6px;
+}
+
+.collab-badge {
+  padding: 2px 7px;
+  border-radius: 10px;
+  font-size: 10px;
+  font-weight: 600;
+  background: rgba(16, 185, 129, 0.2);
+  color: #34d399;
+  border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+.collab-header .collab-toggle {
+  font-size: 10px;
+  opacity: 0.6;
+}
+
+/* ========================================
+   Tab navigation
+   ======================================== */
+.collab-tabs {
+  display: flex;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.collab-tab {
+  flex: 1;
+  padding: 9px;
+  background: none;
+  border: none;
+  color: var(--text-secondary, #a0aec0);
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 500;
+  transition: all 0.15s ease;
+  border-bottom: 2px solid transparent;
+}
+
+.collab-tab:hover {
+  color: var(--text-primary, #e0e0e0);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.collab-tab.active {
+  color: #34d399;
+  border-bottom-color: #34d399;
+  background: rgba(16, 185, 129, 0.06);
+}
+
+/* ========================================
+   Content area
+   ======================================== */
+.collab-content {
+  overflow-y: auto;
+  max-height: calc(80vh - 100px);
+  padding: 14px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(16, 185, 129, 0.3) transparent;
+}
+
+.collab-content::-webkit-scrollbar {
+  width: 4px;
+}
+
+.collab-content::-webkit-scrollbar-thumb {
+  background: rgba(16, 185, 129, 0.3);
+  border-radius: 4px;
+}
+
+/* ========================================
+   Status / Toast messages
+   ======================================== */
+.collab-message {
+  padding: 9px 12px;
+  border-radius: 8px;
+  font-size: 11px;
+  font-weight: 500;
+  margin-bottom: 12px;
+  animation: collab-fade-in 0.2s ease;
+}
+
+.collab-message.success {
+  background: rgba(16, 185, 129, 0.15);
+  color: #34d399;
+  border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+.collab-message.error {
+  background: rgba(239, 68, 68, 0.12);
+  color: #f87171;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.collab-message.info {
+  background: rgba(59, 130, 246, 0.12);
+  color: #93c5fd;
+  border: 1px solid rgba(59, 130, 246, 0.3);
+}
+
+@keyframes collab-fade-in {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ========================================
+   Share Tab
+   ======================================== */
+.share-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.share-section h4 {
+  margin: 0 0 4px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary, #a0aec0);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.share-url-row {
+  display: flex;
+  gap: 8px;
+  align-items: stretch;
+}
+
+.share-url-input {
+  flex: 1;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  color: #a0aec0;
+  padding: 8px 10px;
+  font-size: 11px;
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: text;
+}
+
+.share-url-input:focus {
+  outline: none;
+  border-color: rgba(16, 185, 129, 0.5);
+  color: var(--text-primary, #e0e0e0);
+}
+
+.collab-btn {
+  padding: 8px 14px;
+  border-radius: 8px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+  border: 1px solid transparent;
+}
+
+.collab-btn-primary {
+  background: rgba(16, 185, 129, 0.7);
+  color: #fff;
+  border-color: rgba(16, 185, 129, 0.9);
+}
+
+.collab-btn-primary:hover {
+  background: rgba(16, 185, 129, 0.9);
+}
+
+.collab-btn-secondary {
+  background: rgba(255, 255, 255, 0.07);
+  color: var(--text-secondary, #a0aec0);
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+.collab-btn-secondary:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: var(--text-primary, #e0e0e0);
+}
+
+.collab-btn-danger {
+  background: rgba(239, 68, 68, 0.15);
+  color: #f87171;
+  border-color: rgba(239, 68, 68, 0.3);
+}
+
+.collab-btn-danger:hover {
+  background: rgba(239, 68, 68, 0.3);
+}
+
+.collab-btn-icon {
+  padding: 7px 10px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 7px;
+  color: var(--text-secondary, #a0aec0);
+  cursor: pointer;
+  font-size: 13px;
+  transition: all 0.15s ease;
+}
+
+.collab-btn-icon:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: var(--text-primary, #e0e0e0);
+}
+
+/* Current state info */
+.share-state-info {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+
+.share-state-info .state-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  padding: 3px 0;
+}
+
+.share-state-info .state-label {
+  color: var(--text-secondary, #a0aec0);
+}
+
+.share-state-info .state-value {
+  color: var(--text-primary, #e0e0e0);
+  font-weight: 500;
+}
+
+/* ========================================
+   Snapshots Tab
+   ======================================== */
+.snapshots-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.snapshots-form {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 10px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.snapshots-form input,
+.snapshots-form textarea {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 7px;
+  color: var(--text-primary, #e0e0e0);
+  padding: 7px 10px;
+  font-size: 12px;
+  width: 100%;
+  box-sizing: border-box;
+  font-family: inherit;
+}
+
+.snapshots-form input:focus,
+.snapshots-form textarea:focus {
+  outline: none;
+  border-color: rgba(16, 185, 129, 0.5);
+}
+
+.snapshots-form input::placeholder,
+.snapshots-form textarea::placeholder {
+  opacity: 0.4;
+}
+
+.snapshots-form textarea {
+  resize: vertical;
+  min-height: 50px;
+  max-height: 100px;
+  font-size: 11px;
+}
+
+.snapshot-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.snapshot-card {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 10px;
+  padding: 10px 12px;
+  transition: border-color 0.2s ease;
+}
+
+.snapshot-card:hover {
+  border-color: rgba(16, 185, 129, 0.3);
+}
+
+.snapshot-card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.snapshot-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary, #e0e0e0);
+}
+
+.snapshot-desc {
+  font-size: 11px;
+  color: var(--text-secondary, #a0aec0);
+  margin-bottom: 6px;
+  line-height: 1.4;
+}
+
+.snapshot-meta {
+  font-size: 10px;
+  color: rgba(160, 174, 192, 0.6);
+  margin-bottom: 8px;
+}
+
+.snapshot-actions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+/* ========================================
+   Comments Tab
+   ======================================== */
+.comments-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.comments-repo-info {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 12px;
+}
+
+.comments-repo-info .repo-name {
+  font-weight: 600;
+  color: #34d399;
+}
+
+.no-repo-selected {
+  text-align: center;
+  padding: 30px;
+  color: var(--text-secondary, #a0aec0);
+  font-size: 12px;
+  opacity: 0.7;
+}
+
+.comment-form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.comment-input {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  color: var(--text-primary, #e0e0e0);
+  padding: 9px 12px;
+  font-size: 12px;
+  font-family: inherit;
+  resize: vertical;
+  min-height: 70px;
+  max-height: 150px;
+  width: 100%;
+  box-sizing: border-box;
+  line-height: 1.5;
+}
+
+.comment-input:focus {
+  outline: none;
+  border-color: rgba(16, 185, 129, 0.5);
+}
+
+.comment-input::placeholder {
+  opacity: 0.4;
+}
+
+.comment-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.comment-card {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 10px;
+  padding: 10px 12px;
+  transition: border-color 0.2s ease;
+}
+
+.comment-card.pinned {
+  border-color: rgba(16, 185, 129, 0.3);
+  background: rgba(16, 185, 129, 0.04);
+}
+
+.comment-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.comment-author {
+  font-size: 11px;
+  font-weight: 600;
+  color: #34d399;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.pinned-badge {
+  font-size: 9px;
+  background: rgba(16, 185, 129, 0.2);
+  color: #34d399;
+  padding: 1px 5px;
+  border-radius: 4px;
+  border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+.comment-date {
+  font-size: 10px;
+  color: rgba(160, 174, 192, 0.5);
+}
+
+.comment-text {
+  font-size: 12px;
+  color: var(--text-primary, #e0e0e0);
+  line-height: 1.5;
+  margin-bottom: 8px;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.comment-actions {
+  display: flex;
+  gap: 5px;
+}
+
+.no-comments {
+  text-align: center;
+  padding: 20px;
+  color: var(--text-secondary, #a0aec0);
+  font-size: 11px;
+  opacity: 0.6;
+}
+
+/* ========================================
+   Empty states
+   ======================================== */
+.collab-empty {
+  text-align: center;
+  padding: 30px 20px;
+  color: var(--text-secondary, #a0aec0);
+  font-size: 12px;
+  opacity: 0.7;
+}
+
+.collab-empty .empty-icon {
+  font-size: 32px;
+  display: block;
+  margin-bottom: 8px;
+  opacity: 0.5;
+}
+
+/* ========================================
+   Responsive
+   ======================================== */
+@media (max-width: 600px) {
+  .collaboration-panel {
+    bottom: 0;
+    left: 0;
+    right: 0;
+    transform: none;
+    width: 100%;
+    max-width: 100%;
+    border-radius: 14px 14px 0 0;
+  }
+}
+
+/* Light theme */
+[data-theme="light"] .collaboration-panel {
+  background: rgba(255, 255, 255, 0.96);
+  border-color: rgba(16, 185, 129, 0.2);
+  color: #1a1a2e;
+}
+
+[data-theme="light"] .collab-header {
+  background: rgba(16, 185, 129, 0.07);
+}
+
+[data-theme="light"] .comment-card,
+[data-theme="light"] .snapshot-card {
+  background: rgba(0, 0, 0, 0.03);
+  border-color: rgba(0, 0, 0, 0.08);
+}

@@ -1,0 +1,60 @@
+.stats-card {
+  min-width: 200px;
+  animation: slideDown 0.3s ease-out;
+}
+
+.stats-username {
+  margin: 0 0 12px 0;
+  color: var(--accent-1);
+  font-weight: 600;
+  font-size: 14px;
+  letter-spacing: -0.2px;
+}
+
+.stats-message {
+  margin: 8px 0;
+  font-size: 13px;
+  color: var(--text-secondary);
+  line-height: 1.4;
+}
+
+.stats-loading {
+  color: var(--accent-1);
+}
+
+.stats-error {
+  color: #ef4444;
+  font-weight: 500;
+}
+
+.stats-success {
+  color: #10b981;
+  font-weight: 500;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (max-width: 768px) {
+  .stats-card {
+    min-width: auto;
+    width: 100%;
+    max-width: 300px;
+  }
+
+  .stats-username {
+    font-size: 13px;
+  }
+
+  .stats-message {
+    font-size: 12px;
+  }
+}

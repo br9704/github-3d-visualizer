@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react'
 import * as THREE from 'three'
+import { OrbitControls } from 'three-stdlib'
 import { useThreeScene } from '../hooks/useThreeScene'
 import { getLanguageInfo } from '../utils/colors'
 
@@ -97,6 +98,20 @@ export default function Visualizer({ repos, onRepoClick }) {
 
       const center = boundingBox.getCenter(new THREE.Vector3())
       camera.lookAt(center)
+
+      // Setup OrbitControls
+      const controls = new OrbitControls(camera, renderer.domElement)
+      controls.autoRotate = true
+      controls.autoRotateSpeed = 2
+      controls.enableDamping = true
+      controls.dampingFactor = 0.05
+      controls.enableZoom = true
+      controls.zoomSpeed = 1.2
+      controls.target.copy(center)
+      controls.update()
+
+      // Cleanup controls
+      return () => controls.dispose()
     }
 
     // Animation loop for spheres

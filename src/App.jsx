@@ -10,6 +10,7 @@ import Pagination from './components/Pagination'
 import Header from './components/Header'
 import KeyboardHelpModal from './components/KeyboardHelpModal'
 import FilterSetsManager from './components/FilterSetsManager'
+import DataExportPanel from './components/DataExportPanel'
 import { ThemeProvider } from './contexts/ThemeContext'
 import { fetchUserRepos, fetchRepoReadmeBatch } from './utils/githubApi'
 import { calculatePositions } from './utils/positioning'
@@ -190,10 +191,16 @@ function App() {
           username={username}
         />
         {repos.length > 0 && (
-          <FilterSetsManager
-            currentFilters={{ languages: filteredLanguage ? [filteredLanguage] : [] }}
-            onLoadSet={handleLoadFilterSet}
-          />
+          <>
+            <FilterSetsManager
+              currentFilters={{ languages: filteredLanguage ? [filteredLanguage] : [] }}
+              onLoadSet={handleLoadFilterSet}
+            />
+            <DataExportPanel
+              repos={repos}
+              username={username}
+            />
+          </>
         )}
         {username && detectedLanguages.length > 0 && (
           <LanguageFilter

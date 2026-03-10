@@ -246,7 +246,7 @@ export default function AdvancedHeatmaps({ repos }) {
                 return `${x},${y}`
               }).join(' ')}
               fill="none"
-              stroke="#7c3aed"
+              stroke="#888888"
               strokeWidth="2"
             />
 
@@ -260,7 +260,7 @@ export default function AdvancedHeatmaps({ repos }) {
                   cx={x}
                   cy={y}
                   r="3"
-                  fill="#7c3aed"
+                  fill="#888888"
                   onMouseEnter={() => setHoveredItem(item)}
                   onMouseLeave={() => setHoveredItem(null)}
                 >

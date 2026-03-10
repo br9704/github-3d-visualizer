@@ -67,7 +67,7 @@
   justify-content: center;
   width: 24px;
   height: 24px;
-  background: #7c3aed;
+  background: #888888;
   color: white;
   border-radius: 50%;
   font-size: 12px;
@@ -166,14 +166,14 @@
 }
 
 .btn-primary {
-  background: #7c3aed;
+  background: #888888;
   color: white;
 }
 
 .btn-primary:hover {
-  background: #6d28d9;
+  background: #666666;
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(124, 58, 237, 0.3);
+  box-shadow: 0 4px 12px rgba(128, 128, 128, 0.3);
 }
 
 .btn-secondary {
@@ -256,8 +256,8 @@
 .dialog-input:focus,
 .dialog-textarea:focus {
   outline: none;
-  border-color: #7c3aed;
-  box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.1);
+  border-color: #888888;
+  box-shadow: 0 0 0 3px rgba(128, 128, 128, 0.1);
 }
 
 .dialog-actions {
@@ -342,12 +342,12 @@
 
 .set-item.selected {
   background: #ede9fe;
-  border-color: #7c3aed;
+  border-color: #888888;
 }
 
 .filter-sets-manager.dark-mode .set-item.selected {
   background: #3a2a4a;
-  border-color: #7c3aed;
+  border-color: #888888;
 }
 
 .set-info {
@@ -442,7 +442,7 @@
 .set-edit-input {
   width: 100%;
   padding: 8px 12px;
-  border: 2px solid #7c3aed;
+  border: 2px solid #888888;
   border-radius: 4px;
   font-size: 14px;
   font-weight: 600;
@@ -450,13 +450,13 @@
 
 .filter-sets-manager.dark-mode .set-edit-input {
   background: #333;
-  border-color: #7c3aed;
+  border-color: #888888;
   color: #e0e0e0;
 }
 
 .set-edit-input:focus {
   outline: none;
-  box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.2);
+  box-shadow: 0 0 0 3px rgba(128, 128, 128, 0.2);
 }
 
 /* Stats */
@@ -496,7 +496,7 @@
 .stat .value {
   font-size: 18px;
   font-weight: 700;
-  color: #7c3aed;
+  color: #888888;
 }
 
 /* Responsive */

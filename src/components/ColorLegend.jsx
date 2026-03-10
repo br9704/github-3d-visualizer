@@ -25,14 +25,14 @@ export default function ColorLegend({ languages = [] }) {
         top: '100px',
         right: '20px',
         background: 'rgba(0, 0, 0, 0.9)',
-        border: '1px solid #7c3aed',
+        border: '1px solid #888888',
         padding: '15px',
         borderRadius: '8px',
         maxWidth: '200px',
         zIndex: 50
       }}
     >
-      <h3 style={{ margin: '0 0 10px 0', color: '#7c3aed', fontSize: '14px', fontWeight: 'bold' }}>
+      <h3 style={{ margin: '0 0 10px 0', color: '#888888', fontSize: '14px', fontWeight: 'bold' }}>
         Languages
       </h3>
       {displayLanguages.map((lang) => {

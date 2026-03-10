@@ -15,7 +15,7 @@
   width: 380px;
   max-height: 85vh;
   background: var(--panel-bg, rgba(15, 15, 20, 0.92));
-  border: 1px solid var(--border-color, rgba(124, 58, 237, 0.3));
+  border: 1px solid var(--border-color, rgba(128, 128, 128, 0.3));
   border-radius: 12px;
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
@@ -23,7 +23,7 @@
   overflow: hidden;
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
   color: var(--text-primary, #e0e0e0);
-  box-shadow: 0 8px 32px rgba(124, 58, 237, 0.15);
+  box-shadow: 0 8px 32px rgba(128, 128, 128, 0.15);
 }
 
 .heatmaps-header {
@@ -31,15 +31,15 @@
   align-items: center;
   justify-content: space-between;
   padding: 14px 16px;
-  background: var(--header-bg, rgba(124, 58, 237, 0.15));
+  background: var(--header-bg, rgba(128, 128, 128, 0.15));
   cursor: pointer;
   user-select: none;
-  border-bottom: 1px solid var(--border-color, rgba(124, 58, 237, 0.2));
+  border-bottom: 1px solid var(--border-color, rgba(128, 128, 128, 0.2));
   transition: background 0.2s ease;
 }
 
 .heatmaps-header:hover {
-  background: var(--header-hover-bg, rgba(124, 58, 237, 0.25));
+  background: var(--header-hover-bg, rgba(128, 128, 128, 0.25));
 }
 
 .heatmaps-title {
@@ -69,7 +69,7 @@
   max-height: calc(85vh - 52px);
   padding: 12px;
   scrollbar-width: thin;
-  scrollbar-color: rgba(124, 58, 237, 0.4) transparent;
+  scrollbar-color: rgba(128, 128, 128, 0.4) transparent;
 }
 
 .heatmaps-content::-webkit-scrollbar {
@@ -77,7 +77,7 @@
 }
 
 .heatmaps-content::-webkit-scrollbar-thumb {
-  background: rgba(124, 58, 237, 0.4);
+  background: rgba(128, 128, 128, 0.4);
   border-radius: 4px;
 }
 
@@ -105,13 +105,13 @@
 }
 
 .heatmap-tabs .tab:hover {
-  background: rgba(124, 58, 237, 0.2);
+  background: rgba(128, 128, 128, 0.2);
   color: var(--text-primary, #e0e0e0);
 }
 
 .heatmap-tabs .tab.active {
-  background: rgba(124, 58, 237, 0.4);
-  border-color: rgba(124, 58, 237, 0.6);
+  background: rgba(128, 128, 128, 0.4);
+  border-color: rgba(128, 128, 128, 0.6);
   color: #fff;
 }
 
@@ -159,7 +159,7 @@
   left: 50%;
   transform: translateX(-50%);
   background: rgba(0, 0, 0, 0.9);
-  border: 1px solid rgba(124, 58, 237, 0.4);
+  border: 1px solid rgba(128, 128, 128, 0.4);
   border-radius: 6px;
   padding: 6px 8px;
   font-size: 10px;
@@ -274,7 +274,7 @@
 .heatmap-stats .stat .value {
   font-size: 14px;
   font-weight: 700;
-  color: #7c3aed;
+  color: #888888;
 }
 
 /* Activity Heatmap */
@@ -286,7 +286,7 @@
   overflow-x: auto;
   padding-bottom: 6px;
   scrollbar-width: thin;
-  scrollbar-color: rgba(124, 58, 237, 0.3) transparent;
+  scrollbar-color: rgba(128, 128, 128, 0.3) transparent;
 }
 
 .activity-bar {
@@ -317,7 +317,7 @@
   left: 50%;
   transform: translateX(-50%);
   background: rgba(0, 0, 0, 0.9);
-  border: 1px solid rgba(124, 58, 237, 0.4);
+  border: 1px solid rgba(128, 128, 128, 0.4);
   border-radius: 6px;
   padding: 6px 8px;
   font-size: 10px;
@@ -373,7 +373,7 @@
   left: 50%;
   transform: translateX(-50%);
   background: rgba(0, 0, 0, 0.9);
-  border: 1px solid rgba(124, 58, 237, 0.4);
+  border: 1px solid rgba(128, 128, 128, 0.4);
   border-radius: 6px;
   padding: 6px 8px;
   font-size: 10px;
@@ -423,7 +423,7 @@
   top: 10px;
   right: 10px;
   background: rgba(0, 0, 0, 0.85);
-  border: 1px solid rgba(124, 58, 237, 0.4);
+  border: 1px solid rgba(128, 128, 128, 0.4);
   border-radius: 6px;
   padding: 6px 8px;
   font-size: 10px;
@@ -455,12 +455,12 @@
 /* Light theme overrides */
 [data-theme="light"] .advanced-heatmaps {
   background: rgba(255, 255, 255, 0.95);
-  border-color: rgba(124, 58, 237, 0.2);
+  border-color: rgba(128, 128, 128, 0.2);
   color: #1a1a2e;
 }
 
 [data-theme="light"] .heatmaps-header {
-  background: rgba(124, 58, 237, 0.08);
+  background: rgba(128, 128, 128, 0.08);
 }
 
 [data-theme="light"] .heatmaps-title {

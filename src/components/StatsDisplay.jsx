@@ -8,7 +8,7 @@ export default function StatsDisplay({ loading, error, repoCount, username }) {
         top: '100px',
         left: '20px',
         background: 'rgba(0, 0, 0, 0.9)',
-        border: '1px solid #7c3aed',
+        border: '1px solid #888888',
         padding: '15px',
         borderRadius: '8px',
         fontSize: '14px',
@@ -17,7 +17,7 @@ export default function StatsDisplay({ loading, error, repoCount, username }) {
         minWidth: '180px'
       }}
     >
-      <p style={{ margin: '0 0 10px 0', color: '#7c3aed', fontWeight: 'bold' }}>
+      <p style={{ margin: '0 0 10px 0', color: '#888888', fontWeight: 'bold' }}>
         {username}
       </p>
       {loading && <p style={{ margin: '5px 0' }}>⏳ Loading repositories...</p>}

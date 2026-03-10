@@ -170,8 +170,8 @@
 }
 
 .tab.active {
-  color: #7c3aed;
-  border-bottom-color: #7c3aed;
+  color: #888888;
+  border-bottom-color: #888888;
 }
 
 /* Export Section */
@@ -342,7 +342,7 @@
 /* Export Button */
 .export-btn {
   padding: 10px 14px;
-  background: #7c3aed;
+  background: #888888;
   color: white;
   border: none;
   border-radius: 6px;
@@ -353,9 +353,9 @@
 }
 
 .export-btn:hover {
-  background: #6d28d9;
+  background: #666666;
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(124, 58, 237, 0.3);
+  box-shadow: 0 4px 12px rgba(128, 128, 128, 0.3);
 }
 
 .export-btn:active {

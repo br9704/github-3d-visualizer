@@ -34,12 +34,12 @@ export default function RepoDetails({ repo, onClose }) {
           maxWidth: '600px',
           maxHeight: '80vh',
           overflow: 'auto',
-          border: '2px solid #7c3aed',
+          border: '2px solid #888888',
           position: 'relative'
         }}
         onClick={(e) => e.stopPropagation()}
       >
-        <h2 style={{ margin: '0 0 15px 0', color: '#7c3aed' }}>
+        <h2 style={{ margin: '0 0 15px 0', color: '#888888' }}>
           {repo.name}
         </h2>
         <p style={{ margin: '0 0 20px 0', fontSize: '14px', color: '#aaa' }}>
@@ -74,7 +74,7 @@ export default function RepoDetails({ repo, onClose }) {
                 fontSize: '11px',
                 maxHeight: '200px',
                 overflow: 'auto',
-                border: '1px solid #7c3aed',
+                border: '1px solid #888888',
                 color: '#aaa'
               }}
             >
@@ -91,7 +91,7 @@ export default function RepoDetails({ repo, onClose }) {
             display: 'inline-block',
             marginTop: '20px',
             padding: '12px 24px',
-            background: '#7c3aed',
+            background: '#888888',
             color: '#fff',
             textDecoration: 'none',
             borderRadius: '4px',
@@ -109,7 +109,7 @@ export default function RepoDetails({ repo, onClose }) {
             right: '15px',
             background: 'none',
             border: 'none',
-            color: '#7c3aed',
+            color: '#888888',
             fontSize: '28px',
             cursor: 'pointer'
           }}

@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from 'react'
+import { useState, useCallback, useRef, useEffect } from 'react'
 import SearchBar from './components/SearchBar'
 import Visualizer from './components/Visualizer'
 import RepoDetails from './components/RepoDetails'
@@ -7,6 +7,9 @@ import LanguageFilter from './components/LanguageFilter'
 import StatsDisplay from './components/StatsDisplay'
 import ExportShare from './components/ExportShare'
 import Pagination from './components/Pagination'
+import Header from './components/Header'
+import KeyboardHelpModal from './components/KeyboardHelpModal'
+import { ThemeProvider } from './contexts/ThemeContext'
 import { fetchUserRepos, fetchRepoReadmeBatch } from './utils/githubApi'
 import { calculatePositions } from './utils/positioning'
 import './App.css'
@@ -25,7 +28,21 @@ function App() {
   const [filteredLanguage, setFilteredLanguage] = useState(null)
   const [currentPage, setCurrentPage] = useState(1)
   const [totalRepos, setTotalRepos] = useState(0)
+  const [showHelpModal, setShowHelpModal] = useState(false)
   const userDataRef = useRef({}) // Store user data for pagination
+
+  // Keyboard help modal trigger
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if ((e.key === '?' || e.key === '/') && !selectedRepo) {
+        e.preventDefault()
+        setShowHelpModal(true)
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [selectedRepo])
 
   const handleSearch = useCallback(async (searchUsername) => {
     setLoading(true)
@@ -138,48 +155,55 @@ function App() {
   }, [])
 
   return (
-    <div className="app">
-      <Visualizer
-        repos={positionedRepos}
-        onRepoClick={handleRepoClick}
-        detectedLanguages={detectedLanguages}
-      />
-      <SearchBar onSearch={handleSearch} loading={loading} error={error} />
-      <StatsDisplay
-        loading={loading}
-        error={error}
-        repoCount={repos.length}
-        username={username}
-      />
-      {username && detectedLanguages.length > 0 && (
-        <LanguageFilter
-          languages={detectedLanguages}
-          onLanguageChange={handleLanguageFilter}
+    <ThemeProvider>
+      <div className="app">
+        <Header />
+        <KeyboardHelpModal
+          isOpen={showHelpModal}
+          onClose={() => setShowHelpModal(false)}
         />
-      )}
-      {selectedRepo && (
-        <RepoDetails repo={selectedRepo} onClose={() => setSelectedRepo(null)} />
-      )}
-      {repos.length > 0 && (
-        <>
-          <ExportShare
-            repos={positionedRepos}
-            username={username}
-            filters={{ language: filteredLanguage }}
+        <Visualizer
+          repos={positionedRepos}
+          onRepoClick={handleRepoClick}
+          detectedLanguages={detectedLanguages}
+        />
+        <SearchBar onSearch={handleSearch} loading={loading} error={error} />
+        <StatsDisplay
+          loading={loading}
+          error={error}
+          repoCount={repos.length}
+          username={username}
+        />
+        {username && detectedLanguages.length > 0 && (
+          <LanguageFilter
+            languages={detectedLanguages}
+            onLanguageChange={handleLanguageFilter}
           />
-          {totalRepos > REPOS_PER_PAGE && (
-            <Pagination
-              currentPage={currentPage}
-              totalRepos={totalRepos}
-              reposPerPage={REPOS_PER_PAGE}
-              onLoadMore={handleLoadMore}
-              isLoading={loading}
-              maxRepos={MAX_REPOS}
+        )}
+        {selectedRepo && (
+          <RepoDetails repo={selectedRepo} onClose={() => setSelectedRepo(null)} />
+        )}
+        {repos.length > 0 && (
+          <>
+            <ExportShare
+              repos={positionedRepos}
+              username={username}
+              filters={{ language: filteredLanguage }}
             />
-          )}
-        </>
-      )}
-    </div>
+            {totalRepos > REPOS_PER_PAGE && (
+              <Pagination
+                currentPage={currentPage}
+                totalRepos={totalRepos}
+                reposPerPage={REPOS_PER_PAGE}
+                onLoadMore={handleLoadMore}
+                isLoading={loading}
+                maxRepos={MAX_REPOS}
+              />
+            )}
+          </>
+        )}
+      </div>
+    </ThemeProvider>
   )
 }
 

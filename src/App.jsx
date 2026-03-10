@@ -1,3 +1,15 @@
+/**
+ * App.jsx - Main Application Component
+ * GitHub 3D Repository Visualizer — v4
+ *
+ * v4 Features integrated:
+ *  1. Custom Filter Sets  - Save/load filter combinations (FilterSetsManager)
+ *  2. Data Export Formats - JSON, CSV, snapshots (DataExportPanel)
+ *  3. Advanced Heatmaps   - Activity/contribution heatmaps (AdvancedHeatmaps)
+ *  4. User Preferences    - Persistent settings, themes, defaults (UserPreferencesPanel)
+ *  5. Collaboration       - Share links, snapshots, annotations (CollaborationPanel)
+ */
+
 import { useState, useCallback, useRef, useEffect } from 'react'
 import SearchBar from './components/SearchBar'
 import Visualizer from './components/Visualizer'
@@ -11,7 +23,12 @@ import Header from './components/Header'
 import KeyboardHelpModal from './components/KeyboardHelpModal'
 import FilterSetsManager from './components/FilterSetsManager'
 import DataExportPanel from './components/DataExportPanel'
+import AdvancedHeatmaps from './components/AdvancedHeatmaps'
+import UserPreferencesPanel from './components/UserPreferencesPanel'
+import CollaborationPanel from './components/CollaborationPanel'
 import { ThemeProvider } from './contexts/ThemeContext'
+import { userPreferences } from './services/userPreferences'
+import { collaborationService } from './services/collaborationService'
 import { fetchUserRepos, fetchRepoReadmeBatch } from './utils/githubApi'
 import { calculatePositions } from './utils/positioning'
 import './App.css'
@@ -19,21 +36,59 @@ import './App.css'
 const REPOS_PER_PAGE = 100
 const MAX_REPOS = 500
 
+/**
+ * Main App component.
+ * Owns global state: repos, filters, preferences, selected repo.
+ */
 function App() {
-  const [repos, setRepos] = useState([])
-  const [positionedRepos, setPositionedRepos] = useState([])
-  const [selectedRepo, setSelectedRepo] = useState(null)
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
-  const [username, setUsername] = useState('')
+  // ─── Core state ─────────────────────────────────────────────────────────────
+  const [repos, setRepos]                         = useState([])
+  const [positionedRepos, setPositionedRepos]     = useState([])
+  const [selectedRepo, setSelectedRepo]           = useState(null)
+  const [loading, setLoading]                     = useState(false)
+  const [error, setError]                         = useState('')
+  const [username, setUsername]                   = useState('')
   const [detectedLanguages, setDetectedLanguages] = useState([])
-  const [filteredLanguage, setFilteredLanguage] = useState(null)
-  const [currentPage, setCurrentPage] = useState(1)
-  const [totalRepos, setTotalRepos] = useState(0)
-  const [showHelpModal, setShowHelpModal] = useState(false)
-  const userDataRef = useRef({}) // Store user data for pagination
+  const [filteredLanguage, setFilteredLanguage]   = useState(null)
+  const [currentPage, setCurrentPage]             = useState(1)
+  const [totalRepos, setTotalRepos]               = useState(0)
+  const [showHelpModal, setShowHelpModal]         = useState(false)
 
-  // Keyboard help modal trigger
+  /** Store user data for pagination */
+  const userDataRef = useRef({})
+
+  // ─── User preferences (v4 Feature 4) ─────────────────────────────────────
+  const [prefs, setPrefs] = useState(() => userPreferences.loadAll())
+
+  // Extract commonly used preference values
+  const { minStars, excludeArchived, excludeForks } = prefs.filters
+  const { colorScheme } = prefs.visualization
+
+  /**
+   * Called by UserPreferencesPanel when settings change.
+   * @param {Object} updatedPrefs - Full preferences object
+   */
+  const handlePreferencesChange = useCallback((updatedPrefs) => {
+    setPrefs(updatedPrefs)
+  }, [])
+
+  // ─── Inbound share link detection (v4 Feature 5) ─────────────────────────
+
+  useEffect(() => {
+    /**
+     * On mount, check if the URL contains a ?viz= share param.
+     * If found, auto-populate the UI with the shared state.
+     */
+    const sharedState = collaborationService.parseShareUrl()
+    if (sharedState?.username) {
+      // Silently pre-fill username so user can trigger the search
+      setUsername(sharedState.username)
+      if (sharedState.language) setFilteredLanguage(sharedState.language)
+    }
+  }, []) // run once on mount
+
+  // ─── Keyboard shortcuts ───────────────────────────────────────────────────
+
   useEffect(() => {
     const handleKeyDown = (e) => {
       if ((e.key === '?' || e.key === '/') && !selectedRepo) {
@@ -41,11 +96,18 @@ function App() {
         setShowHelpModal(true)
       }
     }
-
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [selectedRepo])
 
+  // ─── Search / fetch ───────────────────────────────────────────────────────
+
+  /**
+   * Fetch repositories for a given GitHub username.
+   * Applies stored preference defaults (minStars, excludeArchived, etc.).
+   *
+   * @param {string} searchUsername - GitHub username to search
+   */
   const handleSearch = useCallback(async (searchUsername) => {
     setLoading(true)
     setError('')
@@ -54,7 +116,7 @@ function App() {
     setPositionedRepos([])
     setSelectedRepo(null)
     setCurrentPage(1)
-    setFilteredLanguage(null)
+    setFilteredLanguage(prefs.filters.defaultLanguage || null)
 
     try {
       const { user, repos: fetchedRepos } = await fetchUserRepos(
@@ -67,22 +129,34 @@ function App() {
         return
       }
 
-      // Store user data for pagination
       userDataRef.current = { username: searchUsername }
+
+      // Apply preference filters
+      let filtered = fetchedRepos
+      if (prefs.filters.excludeArchived) {
+        filtered = filtered.filter(r => !r.archived)
+      }
+      if (prefs.filters.excludeForks) {
+        filtered = filtered.filter(r => !r.fork)
+      }
+      if (prefs.filters.minStars > 0) {
+        filtered = filtered.filter(r => (r.stargazers_count || 0) >= prefs.filters.minStars)
+      }
+      // Cap by maxRepos preference
+      const maxRepos = prefs.performance.maxRepos || MAX_REPOS
+      filtered = filtered.slice(0, maxRepos)
 
       // Fetch READMEs for first 20 repos
       const reposWithReadme = await fetchRepoReadmeBatch(
         searchUsername,
-        fetchedRepos.slice(0, 20)
+        filtered.slice(0, 20)
       )
 
-      // Add READMEs to remaining repos
       const allRepos = [
         ...reposWithReadme,
-        ...fetchedRepos.slice(20).map((r) => ({ ...r, readme: null }))
+        ...filtered.slice(20).map((r) => ({ ...r, readme: null }))
       ]
 
-      // Calculate positions
       const positioned = calculatePositions(allRepos)
 
       // Extract unique languages
@@ -106,8 +180,11 @@ function App() {
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [prefs])
 
+  /**
+   * Load next page of repositories and append to the scene.
+   */
   const handleLoadMore = useCallback(async () => {
     const nextPage = currentPage + 1
     const startIndex = currentPage * REPOS_PER_PAGE
@@ -118,33 +195,27 @@ function App() {
 
     setLoading(true)
     try {
-      // Fetch next page from GitHub API
       const { repos: newRepos } = await fetchUserRepos(
         username,
         nextPage * REPOS_PER_PAGE
       )
 
-      // Get only the new repos from this page
       const pageRepos = newRepos.slice(startIndex, startIndex + REPOS_PER_PAGE)
-
-      // Fetch READMEs for new repos
       const reposWithReadme = await fetchRepoReadmeBatch(username, pageRepos)
-
-      // Combine with existing repos
       const allRepos = [...repos, ...reposWithReadme]
-
-      // Recalculate positions
       const positioned = calculatePositions(allRepos)
 
       setRepos(allRepos)
       setPositionedRepos(positioned)
       setCurrentPage(nextPage)
     } catch (err) {
-      console.error('Error loading more repos:', err)
+      // Silently fail pagination errors — not critical
     } finally {
       setLoading(false)
     }
   }, [repos, username, currentPage])
+
+  // ─── Event handlers ───────────────────────────────────────────────────────
 
   const handleRepoClick = useCallback((repoData) => {
     if (repoData && repoData.repo) {
@@ -157,67 +228,143 @@ function App() {
   }, [])
 
   /**
-   * Handle loading a filter set
-   * Applies saved filter combinations to current view
+   * Handle loading a saved filter set (v4 Feature 1).
+   * Applies stored filter combinations to the current view.
+   *
+   * @param {Object} filters - Filter set object from FilterSetsManager
    */
   const handleLoadFilterSet = useCallback((filters) => {
     if (filters.languages && Array.isArray(filters.languages)) {
-      // Handle language filter from set
       if (filters.languages.length > 0) {
         setFilteredLanguage(filters.languages[0])
       }
     }
-    // TODO: Extend with framework, author type filters when available
+    if (typeof filters.minStars === 'number') {
+      userPreferences.set('filters', 'minStars', filters.minStars)
+      setPrefs(prev => ({
+        ...prev,
+        filters: { ...prev.filters, minStars: filters.minStars }
+      }))
+    }
   }, [])
+
+  /**
+   * Handle loading a collaboration snapshot (v4 Feature 5).
+   * Restores username + filter state from a saved snapshot.
+   *
+   * @param {Object} state - ShareableState from a snapshot
+   */
+  const handleLoadSnapshot = useCallback((state) => {
+    if (state.language !== undefined) setFilteredLanguage(state.language)
+    if (state.username) {
+      // Trigger a new search for the snapshot's username
+      handleSearch(state.username)
+    }
+  }, [handleSearch])
+
+  // ─── Filtered repos for display ────────────────────────────────────────────
+
+  /**
+   * Apply language filter to positioned repos.
+   * More filters can be chained here as needed.
+   */
+  const displayedRepos = filteredLanguage
+    ? positionedRepos.filter(
+        (r) => r.language && r.language.toLowerCase() === filteredLanguage.toLowerCase()
+      )
+    : positionedRepos
+
+  // ─── Render ───────────────────────────────────────────────────────────────
 
   return (
     <ThemeProvider>
       <div className="app">
         <Header />
+
+        {/* Keyboard help modal */}
         <KeyboardHelpModal
           isOpen={showHelpModal}
           onClose={() => setShowHelpModal(false)}
         />
+
+        {/* 3D Visualizer */}
         <Visualizer
-          repos={positionedRepos}
+          repos={displayedRepos}
           onRepoClick={handleRepoClick}
           detectedLanguages={detectedLanguages}
         />
+
+        {/* Search Bar */}
         <SearchBar onSearch={handleSearch} loading={loading} error={error} />
+
+        {/* Stats */}
         <StatsDisplay
           loading={loading}
           error={error}
           repoCount={repos.length}
           username={username}
         />
+
+        {/* v4 Feature 4: User Preferences Panel */}
+        <UserPreferencesPanel
+          onPreferencesChange={handlePreferencesChange}
+        />
+
         {repos.length > 0 && (
           <>
+            {/* v4 Feature 1: Custom Filter Sets */}
             <FilterSetsManager
               currentFilters={{ languages: filteredLanguage ? [filteredLanguage] : [] }}
               onLoadSet={handleLoadFilterSet}
             />
+
+            {/* v4 Feature 2: Data Export Formats */}
             <DataExportPanel
               repos={repos}
               username={username}
             />
+
+            {/* v4 Feature 3: Advanced Heatmaps */}
+            <AdvancedHeatmaps repos={repos} />
+
+            {/* v4 Feature 5: Collaboration */}
+            <CollaborationPanel
+              username={username}
+              currentLanguage={filteredLanguage}
+              currentMinStars={prefs.filters.minStars}
+              currentColorScheme={colorScheme}
+              selectedRepo={selectedRepo}
+              onLoadSnapshot={handleLoadSnapshot}
+            />
+
+            {/* Color Legend */}
+            <ColorLegend languages={detectedLanguages} />
           </>
         )}
+
+        {/* Language Filter */}
         {username && detectedLanguages.length > 0 && (
           <LanguageFilter
             languages={detectedLanguages}
             onLanguageChange={handleLanguageFilter}
           />
         )}
+
+        {/* Repo Details Drawer */}
         {selectedRepo && (
           <RepoDetails repo={selectedRepo} onClose={() => setSelectedRepo(null)} />
         )}
+
         {repos.length > 0 && (
           <>
+            {/* Export/Share (v3 panel) */}
             <ExportShare
               repos={positionedRepos}
               username={username}
               filters={{ language: filteredLanguage }}
             />
+
+            {/* Pagination */}
             {totalRepos > REPOS_PER_PAGE && (
               <Pagination
                 currentPage={currentPage}

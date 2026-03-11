@@ -78,7 +78,6 @@ export class FilterSetsManager {
         b.createdAt - a.createdAt
       )
     } catch (error) {
-      console.error('Error loading filter sets:', error)
       return Array.from(this.defaultSets.values())
     }
   }
@@ -96,7 +95,6 @@ export class FilterSetsManager {
       // Check user sets first, then defaults
       return userSets[setId] || this.defaultSets.get(setId) || null
     } catch (error) {
-      console.error('Error getting filter set:', error)
       return null
     }
   }
@@ -131,7 +129,6 @@ export class FilterSetsManager {
       
       return newSet
     } catch (error) {
-      console.error('Error saving filter set:', error)
       throw new Error('Failed to save filter set')
     }
   }
@@ -160,7 +157,6 @@ export class FilterSetsManager {
       localStorage.setItem(this.storageKey, JSON.stringify(userSets))
       return userSets[setId]
     } catch (error) {
-      console.error('Error updating filter set:', error)
       throw error
     }
   }
@@ -182,7 +178,6 @@ export class FilterSetsManager {
       }
       return false
     } catch (error) {
-      console.error('Error deleting filter set:', error)
       throw error
     }
   }
@@ -229,7 +224,6 @@ export class FilterSetsManager {
       
       return newSet
     } catch (error) {
-      console.error('Error importing filter set:', error)
       throw new Error('Failed to import filter set: ' + error.message)
     }
   }
@@ -241,7 +235,6 @@ export class FilterSetsManager {
     try {
       localStorage.removeItem(this.storageKey)
     } catch (error) {
-      console.error('Error clearing filter sets:', error)
       throw error
     }
   }

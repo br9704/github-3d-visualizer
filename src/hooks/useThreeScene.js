@@ -1,61 +1,56 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import * as THREE from 'three'
 
 /**
  * useThreeScene Hook
- * 
+ *
  * Manages Three.js scene, camera, and renderer initialization.
  * Responsibilities:
  *   - Validate WebGL support
  *   - Create and configure Three.js components
  *   - Handle window resize
- *   - Provide scene/camera/renderer refs for VisualizerOptimized to use
- * 
+ *   - Provide scene/camera/renderer refs for Visualizer to use
+ *
  * CRITICAL: This hook initializes the scene BUT does NOT run the animation loop.
- * The parent component (VisualizerOptimized) is responsible for the render loop.
+ * The parent component (Visualizer) is responsible for the render loop.
  */
 export function useThreeScene(containerRef) {
   const sceneRef = useRef(null)
   const cameraRef = useRef(null)
   const rendererRef = useRef(null)
-  const initErrorRef = useRef(null)
+  const [initError, setInitError] = useState(null)
+  const [ready, setReady] = useState(false)
 
   useEffect(() => {
     if (!containerRef.current) {
-      console.error('[THREE] Container ref is null - cannot initialize scene')
       return
     }
 
     try {
       // STEP 1: Validate WebGL support
       const canvas = document.createElement('canvas')
-      const webglContext = canvas.getContext('webgl') || canvas.getContext('webgl2')
-      
+      const webglContext = canvas.getContext('webgl2') || canvas.getContext('webgl')
+
       if (!webglContext) {
-        const errorMsg = 'WebGL is not supported on this browser. Please use a modern browser (Chrome, Firefox, Safari, Edge).'
-        console.error('[THREE] ' + errorMsg)
-        initErrorRef.current = errorMsg
+        setInitError('WebGL is not supported on this browser. Please use a modern browser (Chrome, Firefox, Safari, Edge).')
         return
       }
 
       // STEP 2: Create scene
       const scene = new THREE.Scene()
-      scene.background = new THREE.Color(0x000000) // Black background
+      scene.background = new THREE.Color(0x000000)
       sceneRef.current = scene
 
-      // STEP 3: Get container dimensions and validate
-      const width = containerRef.current.clientWidth
-      const height = containerRef.current.clientHeight
-      
-      if (width === 0 || height === 0) {
-      }
+      // STEP 3: Get container dimensions with fallback
+      const width = containerRef.current.clientWidth || window.innerWidth
+      const height = containerRef.current.clientHeight || window.innerHeight
 
       // STEP 4: Create camera
       const camera = new THREE.PerspectiveCamera(
-        75,         // FOV
-        width / height, // Aspect ratio
-        0.1,        // Near plane
-        10000       // Far plane
+        75,                    // FOV
+        width / height || 1,   // Aspect ratio (guard division by zero)
+        0.1,                   // Near plane
+        10000                  // Far plane
       )
       camera.position.z = 80
       cameraRef.current = camera
@@ -67,16 +62,15 @@ export function useThreeScene(containerRef) {
         precision: 'highp',
         powerPreference: 'high-performance'
       })
-      
-      // Check if renderer was created successfully
+
       if (!renderer.domElement) {
-        throw new Error('Failed to create WebGL renderer - domElement is null')
+        throw new Error('Failed to create WebGL renderer')
       }
-      
+
       renderer.setSize(width, height)
-      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2)) // Cap at 2 for performance
-      renderer.shadowMap.enabled = true
-      renderer.shadowMap.type = THREE.PCFSoftShadowMap
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2))
+      // Disable shadow maps — not used (all castShadow/receiveShadow are false)
+      renderer.shadowMap.enabled = false
       rendererRef.current = renderer
 
       // STEP 6: Append renderer to DOM
@@ -85,9 +79,6 @@ export function useThreeScene(containerRef) {
       // STEP 7: Add lights
       const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8)
       directionalLight.position.set(10, 15, 10)
-      directionalLight.castShadow = true
-      directionalLight.shadow.mapSize.width = 2048
-      directionalLight.shadow.mapSize.height = 2048
       scene.add(directionalLight)
 
       const directionalLight2 = new THREE.DirectionalLight(0xffffff, 0.4)
@@ -97,37 +88,37 @@ export function useThreeScene(containerRef) {
       const ambientLight = new THREE.AmbientLight(0xffffff, 0.5)
       scene.add(ambientLight)
 
-      // STEP 8: Handle window resize
-      const handleResize = () => {
-        const w = containerRef.current?.clientWidth || window.innerWidth
-        const h = containerRef.current?.clientHeight || window.innerHeight
-        
-        camera.aspect = w / h
-        camera.updateProjectionMatrix()
-        renderer.setSize(w, h)
-      }
+      setReady(true)
 
+      // STEP 8: Handle window resize with debounce
       let resizeTimeout
-      const debouncedResize = () => {
+      const handleResize = () => {
         clearTimeout(resizeTimeout)
-        resizeTimeout = setTimeout(handleResize, 200)
+        resizeTimeout = setTimeout(() => {
+          const w = containerRef.current?.clientWidth || window.innerWidth
+          const h = containerRef.current?.clientHeight || window.innerHeight
+
+          if (w > 0 && h > 0) {
+            camera.aspect = w / h
+            camera.updateProjectionMatrix()
+            renderer.setSize(w, h)
+          }
+        }, 150)
       }
 
-      window.addEventListener('resize', debouncedResize)
-
-      // STEP 9: Log completion
+      window.addEventListener('resize', handleResize)
 
       // CLEANUP
       return () => {
-        window.removeEventListener('resize', debouncedResize)
+        window.removeEventListener('resize', handleResize)
         clearTimeout(resizeTimeout)
-        
+
         if (containerRef.current && renderer.domElement.parentNode === containerRef.current) {
           containerRef.current.removeChild(renderer.domElement)
         }
-        
-        // Dispose of resources
-        scene.children.forEach(child => {
+
+        // Dispose of scene children
+        scene.traverse((child) => {
           if (child.geometry) child.geometry.dispose()
           if (child.material) {
             if (Array.isArray(child.material)) {
@@ -137,13 +128,14 @@ export function useThreeScene(containerRef) {
             }
           }
         })
-        
+
         renderer.dispose()
+        sceneRef.current = null
+        cameraRef.current = null
+        rendererRef.current = null
       }
     } catch (error) {
-      const errorMsg = `Three.js initialization failed: ${error.message}`
-      console.error('[THREE] ' + errorMsg)
-      initErrorRef.current = error.message
+      setInitError(`Three.js initialization failed: ${error.message}`)
     }
   }, [containerRef])
 
@@ -151,6 +143,7 @@ export function useThreeScene(containerRef) {
     scene: sceneRef.current,
     camera: cameraRef.current,
     renderer: rendererRef.current,
-    error: initErrorRef.current
+    error: initError,
+    ready
   }
 }

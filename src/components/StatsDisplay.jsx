@@ -3,6 +3,8 @@ export default function StatsDisplay({ loading, error, repoCount, username }) {
 
   return (
     <div
+      role="status"
+      aria-live="polite"
       style={{
         position: 'fixed',
         top: '100px',
@@ -14,16 +16,42 @@ export default function StatsDisplay({ loading, error, repoCount, username }) {
         fontSize: '14px',
         color: '#fff',
         zIndex: 50,
-        minWidth: '180px'
+        minWidth: '180px',
+        backdropFilter: 'blur(8px)',
+        transition: 'all 0.3s ease'
       }}
     >
       <p style={{ margin: '0 0 10px 0', color: '#888888', fontWeight: 'bold' }}>
         {username}
       </p>
-      {loading && <p style={{ margin: '5px 0' }}>⏳ Loading repositories...</p>}
+      {loading && (
+        <p style={{
+          margin: '5px 0',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px'
+        }}>
+          <span
+            aria-hidden="true"
+            style={{
+              display: 'inline-block',
+              width: '12px',
+              height: '12px',
+              border: '2px solid rgba(255,255,255,0.3)',
+              borderTopColor: '#fff',
+              borderRadius: '50%',
+              animation: 'spin 0.7s linear infinite',
+              flexShrink: 0
+            }}
+          />
+          Loading repositories…
+        </p>
+      )}
       {error && <p style={{ margin: '5px 0', color: '#ff6b6b' }}>❌ {error}</p>}
       {repoCount > 0 && !loading && (
-        <p style={{ margin: '5px 0', color: '#4ade80' }}>✅ {repoCount} repositories</p>
+        <p style={{ margin: '5px 0', color: '#4ade80' }}>
+          ✅ {repoCount.toLocaleString()} repositories
+        </p>
       )}
     </div>
   )

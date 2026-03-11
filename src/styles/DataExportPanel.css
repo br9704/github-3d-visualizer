@@ -323,7 +323,7 @@
 .data-export-panel.dark-mode .snapshot-info {
   background: #1e3a5f;
   border-left-color: #0284c7;
-  color: #93c5fd;
+  color: #888888;
 }
 
 .snapshot-info p {
@@ -336,7 +336,7 @@
 }
 
 .data-export-panel.dark-mode .snapshot-info .tip {
-  color: #93c5fd;
+  color: #888888;
 }
 
 /* Export Button */

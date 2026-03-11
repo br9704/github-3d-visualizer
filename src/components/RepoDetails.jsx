@@ -1,42 +1,63 @@
 import { useEffect, useRef } from 'react'
 
 export default function RepoDetails({ repo, onClose }) {
-  const modalRef = useRef(null)
-  const closeButtonRef = useRef(null)
+  const dialogRef = useRef(null)
+  const previousFocusRef = useRef(null)
 
+  // Focus trap + restore focus on close
   useEffect(() => {
-    // Focus close button on mount
-    if (closeButtonRef.current) {
-      closeButtonRef.current.focus()
-    }
+    if (!repo) return
 
-    // Focus trap: keep Tab within modal
+    // Store currently focused element to restore later
+    previousFocusRef.current = document.activeElement
+
+    // Focus the dialog
+    const timer = setTimeout(() => {
+      dialogRef.current?.focus()
+    }, 50)
+
     const handleKeyDown = (e) => {
       if (e.key === 'Escape') {
         onClose()
         return
       }
 
-      if (e.key === 'Tab' && modalRef.current) {
-        const focusableElements = modalRef.current.querySelectorAll(
-          'button, a[href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
-        )
-        const firstElement = focusableElements[0]
-        const lastElement = focusableElements[focusableElements.length - 1]
+      // Trap Tab within the dialog
+      if (e.key === 'Tab') {
+        const dialog = dialogRef.current
+        if (!dialog) return
 
-        if (e.shiftKey && document.activeElement === firstElement) {
-          e.preventDefault()
-          lastElement.focus()
-        } else if (!e.shiftKey && document.activeElement === lastElement) {
-          e.preventDefault()
-          firstElement.focus()
+        const focusable = dialog.querySelectorAll(
+          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+        )
+        if (focusable.length === 0) return
+
+        const first = focusable[0]
+        const last = focusable[focusable.length - 1]
+
+        if (e.shiftKey) {
+          if (document.activeElement === first) {
+            e.preventDefault()
+            last.focus()
+          }
+        } else {
+          if (document.activeElement === last) {
+            e.preventDefault()
+            first.focus()
+          }
         }
       }
     }
 
-    document.addEventListener('keydown', handleKeyDown)
-    return () => document.removeEventListener('keydown', handleKeyDown)
-  }, [onClose])
+    window.addEventListener('keydown', handleKeyDown)
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown)
+      clearTimeout(timer)
+      // Restore focus to previous element
+      previousFocusRef.current?.focus()
+    }
+  }, [repo, onClose])
 
   if (!repo) return null
 
@@ -63,12 +84,14 @@ export default function RepoDetails({ repo, onClose }) {
         zIndex: 200
       }}
       onClick={onClose}
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="repo-details-title"
+      role="presentation"
     >
       <div
-        ref={modalRef}
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="repo-details-title"
+        tabIndex={-1}
         style={{
           background: '#1a1a1a',
           color: '#fff',
@@ -78,7 +101,9 @@ export default function RepoDetails({ repo, onClose }) {
           maxHeight: '80vh',
           overflow: 'auto',
           border: '2px solid #888888',
-          position: 'relative'
+          position: 'relative',
+          outline: 'none',
+          animation: 'modalFadeIn 0.2s ease-out'
         }}
         onClick={(e) => e.stopPropagation()}
       >
@@ -98,15 +123,15 @@ export default function RepoDetails({ repo, onClose }) {
             fontSize: '14px'
           }}
         >
-          <div>⭐ Stars: <strong>{repo.stargazers_count}</strong></div>
-          <div>🍴 Forks: <strong>{repo.forks_count}</strong></div>
+          <div>⭐ Stars: <strong>{repo.stargazers_count?.toLocaleString()}</strong></div>
+          <div>🍴 Forks: <strong>{repo.forks_count?.toLocaleString()}</strong></div>
           <div>🔤 Language: <strong>{repo.language || 'N/A'}</strong></div>
           <div>📅 Updated: <strong>{formatDate(repo.updated_at)}</strong></div>
-          <div>🔔 Issues: <strong>{repo.open_issues_count}</strong></div>
-          <div>👁️ Watchers: <strong>{repo.watchers_count}</strong></div>
+          <div>🔔 Issues: <strong>{repo.open_issues_count?.toLocaleString()}</strong></div>
+          <div>👁️ Watchers: <strong>{repo.watchers_count?.toLocaleString()}</strong></div>
         </div>
 
-        {repo.readme && (
+        {repo.readme && repo.readme !== 'No README found' && (
           <div style={{ marginTop: '20px' }}>
             <h3 style={{ margin: '0 0 10px 0' }}>README Preview</h3>
             <pre
@@ -118,7 +143,9 @@ export default function RepoDetails({ repo, onClose }) {
                 maxHeight: '200px',
                 overflow: 'auto',
                 border: '1px solid #888888',
-                color: '#aaa'
+                color: '#aaa',
+                whiteSpace: 'pre-wrap',
+                wordBreak: 'break-word'
               }}
             >
               {repo.readme}
@@ -138,14 +165,14 @@ export default function RepoDetails({ repo, onClose }) {
             color: '#fff',
             textDecoration: 'none',
             borderRadius: '4px',
-            fontWeight: 'bold'
+            fontWeight: 'bold',
+            transition: 'background 0.2s ease'
           }}
         >
           View on GitHub →
         </a>
 
         <button
-          ref={closeButtonRef}
           onClick={onClose}
           aria-label="Close repository details"
           style={{
@@ -156,7 +183,10 @@ export default function RepoDetails({ repo, onClose }) {
             border: 'none',
             color: '#888888',
             fontSize: '28px',
-            cursor: 'pointer'
+            cursor: 'pointer',
+            padding: '4px 8px',
+            borderRadius: '4px',
+            transition: 'background 0.2s ease'
           }}
         >
           ✕

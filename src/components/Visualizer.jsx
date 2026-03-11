@@ -1,9 +1,19 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, useCallback, useMemo } from 'react'
 import * as THREE from 'three'
 import { OrbitControls } from 'three-stdlib'
 import { useThreeScene } from '../hooks/useThreeScene'
 import { getLanguageInfo } from '../utils/colors'
 import '../styles/Tooltip.css'
+
+/**
+ * easeOutBack easing for entrance animations
+ * Overshoots slightly then settles — gives a satisfying "pop" feel
+ */
+function easeOutBack(t) {
+  const c1 = 1.70158
+  const c3 = c1 + 1
+  return 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2)
+}
 
 export default function Visualizer({ repos, onRepoClick, detectedLanguages = [] }) {
   const containerRef = useRef(null)
@@ -12,16 +22,18 @@ export default function Visualizer({ repos, onRepoClick, detectedLanguages = [] 
   const spheresRef = useRef([])
   const visibleSpheresRef = useRef([])
   const geometriesRef = useRef([])
-  const materialsRef = useRef({})
   const sphereGroupRef = useRef(null)
   const raycasterRef = useRef(new THREE.Raycaster())
   const mouseRef = useRef(new THREE.Vector2())
   const hoveredSphereRef = useRef(null)
-  const lastMouseMoveRef = useRef(0)
 
-  // Keyboard state
+  // Pre-allocate reusable objects for animation loop (avoid GC pressure)
+  const frustumRef = useRef(new THREE.Frustum())
+  const projScreenMatrixRef = useRef(new THREE.Matrix4())
+
+  // Keyboard navigation state
   const keyStateRef = useRef({})
-  const currentTabIndexRef = useRef(0)
+  const currentRepoIndexRef = useRef(-1)
 
   // Tooltip state
   const [tooltip, setTooltip] = useState(null)
@@ -35,9 +47,73 @@ export default function Visualizer({ repos, onRepoClick, detectedLanguages = [] 
   // Controls reference
   const controlsRef = useRef(null)
 
-  // PERF FIX: Move frustum and matrix to refs to avoid GC pressure
-  const frustumRef = useRef(new THREE.Frustum())
-  const matrixRef = useRef(new THREE.Matrix4())
+  // Entrance animation state
+  const entranceStartRef = useRef(null)
+  const entranceCompleteRef = useRef(false)
+  const ENTRANCE_DURATION = 1.5 // seconds
+  const ENTRANCE_STAGGER = 0.02 // seconds between each sphere
+
+  // Hover animation state
+  const hoverScaleRef = useRef({}) // { sphereIndex: currentScale }
+
+  // Create the debounced hover check ONCE (not per mousemove)
+  const debouncedHoverCheckRef = useRef(null)
+
+  // Stable debounced hover handler
+  const performHoverCheck = useCallback((event) => {
+    if (!camera || !containerRef.current) return
+
+    raycasterRef.current.setFromCamera(mouseRef.current, camera)
+    const targets = visibleSpheresRef.current.length > 0
+      ? visibleSpheresRef.current
+      : spheresRef.current
+    const intersects = raycasterRef.current.intersectObjects(targets)
+
+    // Reset previous hover
+    if (hoveredSphereRef.current) {
+      hoveredSphereRef.current = null
+    }
+
+    if (intersects.length > 0) {
+      const sphere = intersects[0].object
+      const repo = sphere.userData.repo
+      hoveredSphereRef.current = sphere
+      document.body.style.cursor = 'pointer'
+
+      // Smart tooltip positioning — flip if near edges
+      const padding = 20
+      const tooltipWidth = 260
+      const tooltipHeight = 100
+      let x = event.clientX + padding
+      let y = event.clientY - 10
+
+      if (x + tooltipWidth > window.innerWidth) {
+        x = event.clientX - tooltipWidth - padding
+      }
+      if (y + tooltipHeight > window.innerHeight) {
+        y = window.innerHeight - tooltipHeight - padding
+      }
+      if (y < padding) {
+        y = padding
+      }
+
+      setTooltip({
+        x,
+        y,
+        name: repo.name,
+        stars: repo.stargazers_count,
+        language: repo.language || 'Unknown',
+        description: repo.description
+          ? (repo.description.length > 80
+            ? repo.description.slice(0, 80) + '…'
+            : repo.description)
+          : null
+      })
+    } else {
+      document.body.style.cursor = 'default'
+      setTooltip(null)
+    }
+  }, [camera])
 
   // Create sphere meshes from positioned repos
   useEffect(() => {
@@ -46,6 +122,8 @@ export default function Visualizer({ repos, onRepoClick, detectedLanguages = [] 
     // CLEANUP: Remove and dispose previous spheres
     if (sphereGroupRef.current) {
       sphereGroupRef.current.children.forEach((sphere) => {
+        // Dispose per-sphere materials (they are cloned, not shared)
+        sphere.material?.dispose()
         sphere.geometry?.dispose()
       })
       scene.remove(sphereGroupRef.current)
@@ -54,6 +132,11 @@ export default function Visualizer({ repos, onRepoClick, detectedLanguages = [] 
     geometriesRef.current.forEach((g) => g.dispose())
     geometriesRef.current = []
     spheresRef.current = []
+
+    // Reset entrance animation
+    entranceStartRef.current = null
+    entranceCompleteRef.current = false
+    hoverScaleRef.current = {}
 
     // Create group for all spheres
     const sphereGroup = new THREE.Group()
@@ -69,9 +152,8 @@ export default function Visualizer({ repos, onRepoClick, detectedLanguages = [] 
     repos.forEach((repoData, index) => {
       const { repo, position, size } = repoData
       const { color } = getLanguageInfo(repo.language)
-      const colorHex = '0x' + color.toString(16).padStart(6, '0')
 
-      // OPTIMIZATION: Reuse geometry for same size
+      // Reuse geometry for same size
       const sizeKey = size.toFixed(2)
       if (!geometriesBySize[sizeKey]) {
         geometriesBySize[sizeKey] = new THREE.IcosahedronGeometry(size, detail)
@@ -79,25 +161,26 @@ export default function Visualizer({ repos, onRepoClick, detectedLanguages = [] 
       }
       const geometry = geometriesBySize[sizeKey]
 
-      // CRITICAL OPTIMIZATION: Reuse material by color, but clone to avoid shared opacity mutation
-      if (!materialsRef.current[colorHex]) {
-        materialsRef.current[colorHex] = new THREE.MeshPhongMaterial({
-          color: parseInt(colorHex),
-          emissive: new THREE.Color(parseInt(colorHex)).multiplyScalar(0.3),
-          shininess: 100,
-          side: THREE.FrontSide,
-          wireframe: false
-        })
-      }
-      // Clone material per sphere to avoid shared opacity mutation
-      const material = materialsRef.current[colorHex].clone()
+      // Each sphere gets its OWN material (so opacity/emissive can vary independently)
+      const material = new THREE.MeshPhongMaterial({
+        color: color,
+        emissive: new THREE.Color(color).multiplyScalar(0.3),
+        shininess: 100,
+        side: THREE.FrontSide,
+        wireframe: false,
+        transparent: true,
+        opacity: 0 // Start invisible for entrance animation
+      })
 
       // Create mesh
       const sphere = new THREE.Mesh(geometry, material)
       sphere.position.set(position.x, position.y, position.z)
-      sphere.userData = { repo: { ...repo, size }, index }
+      sphere.userData = { repo, index, baseSize: size }
       sphere.castShadow = false
       sphere.receiveShadow = false
+
+      // Start at scale 0 for entrance animation
+      sphere.scale.set(0, 0, 0)
 
       sphereGroup.add(sphere)
       spheresRef.current.push(sphere)
@@ -139,78 +222,113 @@ export default function Visualizer({ repos, onRepoClick, detectedLanguages = [] 
     }
   }, [repos, scene, renderer, camera, filteredLanguage])
 
-  // Animation loop (SPRINT 9+: Viewport culling)
+  // Animation loop — optimized: no per-frame allocations
   useEffect(() => {
     if (!scene || !renderer || !camera || spheresRef.current.length === 0) return
 
-    const startTime = Date.now()
     let animationFrameId
+    const frustum = frustumRef.current
+    const projScreenMatrix = projScreenMatrixRef.current
 
     const animate = () => {
       animationFrameId = requestAnimationFrame(animate)
-      const elapsed = (Date.now() - startTime) / 1000
+      const now = performance.now() / 1000
+
+      // Initialize entrance timer on first frame
+      if (entranceStartRef.current === null) {
+        entranceStartRef.current = now
+      }
+      const entranceElapsed = now - entranceStartRef.current
 
       // Update controls
       if (controlsRef.current) {
         controlsRef.current.update()
       }
 
-      // PERF FIX: Use ref-based frustum and matrix to avoid allocations
-      matrixRef.current.multiplyMatrices(
+      // Viewport Culling — reuse pre-allocated objects
+      projScreenMatrix.multiplyMatrices(
         camera.projectionMatrix,
         camera.matrixWorldInverse
       )
-      frustumRef.current.setFromProjectionMatrix(matrixRef.current)
+      frustum.setFromProjectionMatrix(projScreenMatrix)
 
-      // Reset all sphere opacities
-      spheresRef.current.forEach((sphere) => {
-        sphere.material.opacity = 1
-        sphere.visible = true
-      })
+      // Process each sphere
+      visibleSpheresRef.current = []
 
-      // Apply viewport culling and language filter
-      visibleSpheresRef.current = spheresRef.current.filter((sphere) => {
-        const inFrustum = frustumRef.current.containsPoint(sphere.position)
+      spheresRef.current.forEach((sphere, i) => {
+        const inFrustum = frustum.containsPoint(sphere.position)
         const matchesLanguage =
           !filteredLanguage ||
           sphere.userData.repo.language?.toLowerCase() === filteredLanguage.toLowerCase()
 
-        sphere.visible = inFrustum && matchesLanguage
+        // Visibility
+        sphere.visible = true // keep visible for fade effects
+        if (!inFrustum) {
+          sphere.visible = false
+          return
+        }
 
-        // Fade non-matching languages
+        // Language filter: fade non-matching
         if (filteredLanguage && !matchesLanguage) {
-          sphere.material.opacity = 0.1
-          sphere.visible = true
+          sphere.material.opacity = 0.08
+          return
         }
 
-        return inFrustum && matchesLanguage
-      })
+        // Track visible spheres for raycasting
+        visibleSpheresRef.current.push(sphere)
 
-      // Animate visible spheres
-      sphereGroupRef.current?.children.forEach((sphere) => {
-        if (spheresRef.current.includes(sphere)) {
-          sphereGroupRef.current.rotation.x += 0.00001
-          sphereGroupRef.current.rotation.y += 0.00005
+        const baseSize = sphere.userData.baseSize || 1
 
-          sphere.rotation.x += 0.005
-          sphere.rotation.y += 0.01
+        // --- Entrance animation ---
+        if (!entranceCompleteRef.current) {
+          const sphereDelay = i * ENTRANCE_STAGGER
+          const sphereProgress = Math.max(0, Math.min(1,
+            (entranceElapsed - sphereDelay) / 0.6
+          ))
+          const easedProgress = easeOutBack(sphereProgress)
 
-          // PERF FIX: Use userData.index instead of relying on repos array index
-          const index = sphere.userData.index
-          const pulse = Math.sin(elapsed * 2 + index * 0.1) * 0.1 + 1
-          const originalSize = sphere.userData.repo.size || 1
-          const scale = pulse * originalSize
-          sphere.scale.set(scale, scale, scale)
+          sphere.material.opacity = sphereProgress
+          const entranceScale = easedProgress * baseSize
+          sphere.scale.set(entranceScale, entranceScale, entranceScale)
 
-          const fadeProgress = Math.min(elapsed / 1, 1)
-          if (sphere.material.transparent === false) {
-            sphere.material.transparent = true
+          // Check if all spheres have finished entrance
+          if (entranceElapsed > ENTRANCE_DURATION + spheresRef.current.length * ENTRANCE_STAGGER) {
+            entranceCompleteRef.current = true
           }
-          if (sphere.material.opacity === undefined || sphere.material.opacity === 1) {
-            sphere.material.opacity = fadeProgress
-          }
+          return // Skip idle animation during entrance
         }
+
+        // --- Idle animation (post-entrance) ---
+        sphere.material.opacity = 1.0
+
+        // Gentle self-rotation
+        sphere.rotation.x += 0.003
+        sphere.rotation.y += 0.006
+
+        // Subtle breathing pulse
+        const pulse = Math.sin(now * 1.5 + i * 0.15) * 0.05 + 1
+
+        // Hover scale — smooth lerp toward target
+        const isHovered = hoveredSphereRef.current === sphere
+        const targetHoverScale = isHovered ? 1.25 : 1.0
+        const currentHoverScale = hoverScaleRef.current[i] || 1.0
+        const newHoverScale = currentHoverScale + (targetHoverScale - currentHoverScale) * 0.12
+        hoverScaleRef.current[i] = newHoverScale
+
+        // Emissive glow on hover (smooth lerp)
+        const targetEmissive = isHovered ? 0.8 : 0.3
+        const currentEmissive = sphere.material.emissive.r / (sphere.material.color.r || 1)
+        const newEmissive = currentEmissive + (targetEmissive - currentEmissive) * 0.1
+        sphere.material.emissive.copy(sphere.material.color).multiplyScalar(newEmissive)
+
+        const finalScale = baseSize * pulse * newHoverScale
+        sphere.scale.set(finalScale, finalScale, finalScale)
       })
+
+      // Slow group rotation
+      if (sphereGroupRef.current) {
+        sphereGroupRef.current.rotation.y += 0.00003
+      }
 
       renderer.render(scene, camera)
     }
@@ -222,27 +340,25 @@ export default function Visualizer({ repos, onRepoClick, detectedLanguages = [] 
     }
   }, [scene, renderer, camera, repos, filteredLanguage])
 
-  // SPRINT 9: Keyboard Navigation
+  // Keyboard Navigation — sequential Tab cycling
   useEffect(() => {
     const handleKeyDown = (e) => {
       keyStateRef.current[e.key] = true
 
-      // Enter: Submit search (handled by SearchBar)
-      // Escape: Close modal (handled by RepoDetails)
-      // Tab: Cycle through repos
-      // Arrow keys: Controlled by OrbitControls
-      // +/-: Zoom (controlled by OrbitControls)
-
       if (e.key === 'Tab' && spheresRef.current.length > 0) {
         e.preventDefault()
-        // Sequential keyboard navigation (fix for random Tab behavior)
+        // Sequential cycling (not random)
         if (e.shiftKey) {
-          currentTabIndexRef.current = (currentTabIndexRef.current - 1 + spheresRef.current.length) % spheresRef.current.length
+          currentRepoIndexRef.current =
+            (currentRepoIndexRef.current - 1 + spheresRef.current.length) % spheresRef.current.length
         } else {
-          currentTabIndexRef.current = (currentTabIndexRef.current + 1) % spheresRef.current.length
+          currentRepoIndexRef.current =
+            (currentRepoIndexRef.current + 1) % spheresRef.current.length
         }
-        const sphere = spheresRef.current[currentTabIndexRef.current]
-        onRepoClick(sphere.userData)
+        const sphere = spheresRef.current[currentRepoIndexRef.current]
+        if (sphere) {
+          onRepoClick(sphere.userData)
+        }
       }
 
       if (e.key === '+' || e.key === '=') {
@@ -279,69 +395,38 @@ export default function Visualizer({ repos, onRepoClick, detectedLanguages = [] 
     }
   }, [onRepoClick])
 
-  // SPRINT 10: Hover Tooltips with debounce
+  // Hover Tooltips — debounce is created ONCE, not per mousemove
   useEffect(() => {
     if (!containerRef.current) return
 
-    // PERF FIX: Create debounced function OUTSIDE the handler to avoid creating new closures every mousemove
-    let debounceTimeout
-    const debouncedCheckHover = (event) => {
-      clearTimeout(debounceTimeout)
-      debounceTimeout = setTimeout(() => {
-        raycasterRef.current.setFromCamera(mouseRef.current, camera)
-        const intersects = raycasterRef.current.intersectObjects(visibleSpheresRef.current.length > 0 ? visibleSpheresRef.current : spheresRef.current)
-
-        // Reset previous hover
-        if (hoveredSphereRef.current) {
-          hoveredSphereRef.current.material.emissiveIntensity = 0.3
-        }
-
-        if (intersects.length > 0) {
-          const sphere = intersects[0].object
-          const repo = sphere.userData.repo
-          sphere.material.emissiveIntensity = 0.8
-          hoveredSphereRef.current = sphere
-          document.body.style.cursor = 'pointer'
-
-          // SPRINT 10: Show tooltip
-          setTooltip({
-            x: event.clientX + 20,
-            y: event.clientY - 10,
-            name: repo.name,
-            stars: repo.stargazers_count
-          })
-        } else {
-          hoveredSphereRef.current = null
-          document.body.style.cursor = 'default'
-          setTooltip(null)
-        }
-      }, 100)
-    }
+    let debounceTimeout = null
 
     const handleMouseMove = (event) => {
       mouseRef.current.x = (event.clientX / window.innerWidth) * 2 - 1
       mouseRef.current.y = -(event.clientY / window.innerHeight) * 2 + 1
-      debouncedCheckHover(event)
+
+      // Proper debounce: clear previous timeout, set new one
+      clearTimeout(debounceTimeout)
+      debounceTimeout = setTimeout(() => performHoverCheck(event), 50)
     }
 
     const handleMouseLeave = () => {
-      if (hoveredSphereRef.current) {
-        hoveredSphereRef.current.material.emissiveIntensity = 0.3
-      }
+      clearTimeout(debounceTimeout)
       hoveredSphereRef.current = null
       document.body.style.cursor = 'default'
       setTooltip(null)
     }
 
-    containerRef.current.addEventListener('mousemove', handleMouseMove)
-    containerRef.current.addEventListener('mouseleave', handleMouseLeave)
+    const el = containerRef.current
+    el.addEventListener('mousemove', handleMouseMove)
+    el.addEventListener('mouseleave', handleMouseLeave)
 
     return () => {
       clearTimeout(debounceTimeout)
-      containerRef.current?.removeEventListener('mousemove', handleMouseMove)
-      containerRef.current?.removeEventListener('mouseleave', handleMouseLeave)
+      el?.removeEventListener('mousemove', handleMouseMove)
+      el?.removeEventListener('mouseleave', handleMouseLeave)
     }
-  }, [camera])
+  }, [performHoverCheck])
 
   // Click handler
   useEffect(() => {
@@ -352,7 +437,10 @@ export default function Visualizer({ repos, onRepoClick, detectedLanguages = [] 
       mouseRef.current.y = -(event.clientY / window.innerHeight) * 2 + 1
 
       raycasterRef.current.setFromCamera(mouseRef.current, camera)
-      const intersects = raycasterRef.current.intersectObjects(visibleSpheresRef.current.length > 0 ? visibleSpheresRef.current : spheresRef.current)
+      const targets = visibleSpheresRef.current.length > 0
+        ? visibleSpheresRef.current
+        : spheresRef.current
+      const intersects = raycasterRef.current.intersectObjects(targets)
 
       if (intersects.length > 0) {
         const repoData = intersects[0].object.userData
@@ -360,13 +448,14 @@ export default function Visualizer({ repos, onRepoClick, detectedLanguages = [] 
       }
     }
 
-    containerRef.current.addEventListener('click', handleClick)
+    const el = containerRef.current
+    el.addEventListener('click', handleClick)
     return () => {
-      containerRef.current?.removeEventListener('click', handleClick)
+      el?.removeEventListener('click', handleClick)
     }
   }, [camera, onRepoClick])
 
-  // SPRINT 15: Touch Controls
+  // Touch Controls
   useEffect(() => {
     if (!containerRef.current) return
 
@@ -399,7 +488,10 @@ export default function Visualizer({ repos, onRepoClick, detectedLanguages = [] 
         mouseRef.current.y = -(touch.clientY / window.innerHeight) * 2 + 1
 
         raycasterRef.current.setFromCamera(mouseRef.current, camera)
-        const intersects = raycasterRef.current.intersectObjects(visibleSpheresRef.current.length > 0 ? visibleSpheresRef.current : spheresRef.current)
+        const targets = visibleSpheresRef.current.length > 0
+          ? visibleSpheresRef.current
+          : spheresRef.current
+        const intersects = raycasterRef.current.intersectObjects(targets)
 
         if (intersects.length > 0) {
           const repoData = intersects[0].object.userData
@@ -408,14 +500,15 @@ export default function Visualizer({ repos, onRepoClick, detectedLanguages = [] 
       }
     }
 
-    containerRef.current.addEventListener('touchstart', handleTouchStart)
-    containerRef.current.addEventListener('touchmove', handleTouchMove)
-    containerRef.current.addEventListener('touchend', handleTouchEnd)
+    const el = containerRef.current
+    el.addEventListener('touchstart', handleTouchStart)
+    el.addEventListener('touchmove', handleTouchMove)
+    el.addEventListener('touchend', handleTouchEnd)
 
     return () => {
-      containerRef.current?.removeEventListener('touchstart', handleTouchStart)
-      containerRef.current?.removeEventListener('touchmove', handleTouchMove)
-      containerRef.current?.removeEventListener('touchend', handleTouchEnd)
+      el?.removeEventListener('touchstart', handleTouchStart)
+      el?.removeEventListener('touchmove', handleTouchMove)
+      el?.removeEventListener('touchend', handleTouchEnd)
     }
   }, [camera, onRepoClick])
 
@@ -429,21 +522,24 @@ export default function Visualizer({ repos, onRepoClick, detectedLanguages = [] 
       <div
         ref={containerRef}
         role="application"
-        aria-label="3D visualization of GitHub repositories. Use mouse to rotate, scroll to zoom, click repositories for details, or press Tab to navigate through repositories."
+        aria-label="3D GitHub repository visualization. Use Tab to cycle through repositories, +/- to zoom, mouse to orbit."
+        tabIndex={0}
         style={{
           width: '100vw',
           height: '100vh',
           position: 'fixed',
           top: 0,
           left: 0,
-          overflow: 'hidden'
+          overflow: 'hidden',
+          outline: 'none'
         }}
       />
-      
-      {/* SPRINT 10: Tooltip */}
+
+      {/* Enhanced Tooltip */}
       {tooltip && (
         <div
           className="tooltip"
+          role="tooltip"
           style={{
             position: 'fixed',
             left: tooltip.x,
@@ -452,7 +548,13 @@ export default function Visualizer({ repos, onRepoClick, detectedLanguages = [] 
           }}
         >
           <div className="tooltip-name">{tooltip.name}</div>
-          <div className="tooltip-stars">⭐ {tooltip.stars} stars</div>
+          {tooltip.language && (
+            <div className="tooltip-language">{tooltip.language}</div>
+          )}
+          {tooltip.description && (
+            <div className="tooltip-desc">{tooltip.description}</div>
+          )}
+          <div className="tooltip-stars">⭐ {tooltip.stars.toLocaleString()} stars</div>
         </div>
       )}
     </>

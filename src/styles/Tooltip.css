@@ -1,15 +1,16 @@
 .tooltip {
-  background: rgba(20, 20, 20, 0.95);
+  background: rgba(20, 20, 20, 0.96);
   color: #fff;
-  padding: 8px 12px;
-  border-radius: 4px;
+  padding: 10px 14px;
+  border-radius: 6px;
   border: 1px solid #888888;
   font-size: 12px;
   pointer-events: none;
   animation: tooltipFadeIn 0.15s ease-out;
-  box-shadow: 0 4px 12px rgba(128, 128, 128, 0.2);
-  max-width: 200px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+  max-width: 260px;
   z-index: 1000;
+  line-height: 1.4;
 }
 
 .tooltip-name {
@@ -18,6 +19,22 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  font-size: 13px;
+}
+
+.tooltip-language {
+  font-size: 11px;
+  color: #b0b0b0;
+  margin-bottom: 4px;
+  text-transform: capitalize;
+}
+
+.tooltip-desc {
+  font-size: 11px;
+  color: #999;
+  margin-bottom: 6px;
+  line-height: 1.3;
+  word-break: break-word;
 }
 
 .tooltip-stars {
@@ -28,10 +45,10 @@
 @keyframes tooltipFadeIn {
   from {
     opacity: 0;
-    transform: translateY(-5px);
+    transform: translateY(-5px) scale(0.95);
   }
   to {
     opacity: 1;
-    transform: translateY(0);
+    transform: translateY(0) scale(1);
   }
 }

@@ -267,5 +267,5 @@ export class DataExporter {
   }
 }
 
-// Export singleton instance
-export const dataExporter = new DataExporter()
+// Export class directly (all methods are static)
+export const dataExporter = DataExporter

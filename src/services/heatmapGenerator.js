@@ -234,12 +234,12 @@ export class HeatmapGenerator {
    */
   static getIntensityColor(intensity) {
     const colors = [
-      'rgba(229, 231, 235, 0.5)',  // 0 - light gray
-      'rgba(147, 197, 253, 0.7)',  // 1 - light blue
-      'rgba(96, 165, 250, 0.8)',   // 2 - blue
-      'rgba(37, 99, 235, 0.9)',    // 3 - darker blue
-      'rgba(29, 78, 216, 1)',      // 4 - dark blue
-      'rgba(15, 23, 42, 1)'        // 5 - very dark blue
+      'rgba(229, 231, 235, 0.5)',  // 0 - light grey
+      'rgba(180, 180, 180, 0.7)',  // 1 - light grey
+      'rgba(140, 140, 140, 0.8)',  // 2 - medium grey
+      'rgba(100, 100, 100, 0.9)',  // 3 - darker grey
+      'rgba(70, 70, 70, 1)',       // 4 - dark grey
+      'rgba(30, 30, 30, 1)'        // 5 - very dark grey
     ]
     return colors[Math.min(5, Math.max(0, Math.floor(intensity)))]
   }

@@ -239,7 +239,7 @@ export default function CollaborationPanel({
         </button>
       </div>
 
-      <p style={{ fontSize: 11, color: '#a0aec0', margin: '4px 0 0', lineHeight: 1.4 }}>
+      <p style={{ fontSize: 11, color: '#b0b0b0', margin: '4px 0 0', lineHeight: 1.4 }}>
         This link encodes the current username, filters, and color scheme.
         Anyone opening it will see the same view.
       </p>
@@ -295,7 +295,7 @@ export default function CollaborationPanel({
             <div key={snap.id} className="snapshot-card">
               <div className="snapshot-card-header">
                 <div className="snapshot-name">{snap.name}</div>
-                <span style={{ fontSize: 10, color: '#a0aec0' }}>
+                <span style={{ fontSize: 10, color: '#b0b0b0' }}>
                   {formatDate(snap.createdAt)}
                 </span>
               </div>

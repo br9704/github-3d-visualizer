@@ -1,5 +1,14 @@
 import { useEffect, useRef } from 'react'
 
+/**
+ * RepoDetails modal — displays repository information with README preview.
+ * Implements WCAG AA focus management: focus trap, focus restoration on close,
+ * Escape key to dismiss, and proper ARIA attributes.
+ *
+ * @param {Object} props
+ * @param {Object} props.repo - GitHub repository object
+ * @param {function(): void} props.onClose - Called when the modal should close
+ */
 export default function RepoDetails({ repo, onClose }) {
   const dialogRef = useRef(null)
   const previousFocusRef = useRef(null)

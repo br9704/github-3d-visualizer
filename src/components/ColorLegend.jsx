@@ -1,5 +1,12 @@
 import { getLanguageInfo } from '../utils/colors'
 
+/**
+ * ColorLegend — displays detected programming languages with their color swatches.
+ * Falls back to a default set of common languages if none are detected.
+ *
+ * @param {Object} props
+ * @param {string[]} props.languages - Lowercase language names detected from repos
+ */
 export default function ColorLegend({ languages = [] }) {
   const defaultLanguages = [
     'javascript',

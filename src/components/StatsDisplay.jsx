@@ -1,3 +1,14 @@
+/**
+ * StatsDisplay — fixed-position panel showing current search status.
+ * Displays username, loading spinner, error messages, or repo count.
+ * Uses aria-live="polite" for screen reader announcements.
+ *
+ * @param {Object} props
+ * @param {boolean} props.loading - Whether repos are being fetched
+ * @param {string} props.error - Error message (if any)
+ * @param {number} props.repoCount - Number of loaded repositories
+ * @param {string} props.username - Currently searched GitHub username
+ */
 export default function StatsDisplay({ loading, error, repoCount, username }) {
   if (!username) return null
 

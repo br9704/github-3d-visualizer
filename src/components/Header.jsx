@@ -2,6 +2,10 @@ import { useContext } from 'react'
 import { ThemeContext } from '../contexts/ThemeContext'
 import '../styles/Header.css'
 
+/**
+ * Header — app title bar with dark/light theme toggle button.
+ * Consumes ThemeContext for current theme state.
+ */
 export default function Header() {
   const { isDark, toggleTheme } = useContext(ThemeContext)
 

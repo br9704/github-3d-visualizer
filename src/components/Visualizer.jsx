@@ -18,30 +18,25 @@ export default function Visualizer({ repos, onRepoClick, detectedLanguages = [] 
   const mouseRef = useRef(new THREE.Vector2())
   const hoveredSphereRef = useRef(null)
   const lastMouseMoveRef = useRef(0)
-  
+
   // Keyboard state
   const keyStateRef = useRef({})
-  
+
   // Tooltip state
   const [tooltip, setTooltip] = useState(null)
-  
+
   // Touch state
   const lastTouchDistanceRef = useRef(0)
-  
+
   // Filtered language
   const [filteredLanguage, setFilteredLanguage] = useState(null)
-  
+
   // Controls reference
   const controlsRef = useRef(null)
 
-  // Debounce utility
-  const debounce = (func, wait) => {
-    let timeout
-    return (...args) => {
-      clearTimeout(timeout)
-      timeout = setTimeout(() => func(...args), wait)
-    }
-  }
+  // PERF FIX: Move frustum and matrix to refs to avoid GC pressure
+  const frustumRef = useRef(new THREE.Frustum())
+  const matrixRef = useRef(new THREE.Matrix4())
 
   // Create sphere meshes from positioned repos
   useEffect(() => {
@@ -83,7 +78,7 @@ export default function Visualizer({ repos, onRepoClick, detectedLanguages = [] 
       }
       const geometry = geometriesBySize[sizeKey]
 
-      // CRITICAL OPTIMIZATION: Reuse material by color
+      // CRITICAL OPTIMIZATION: Reuse material by color, but clone to avoid shared opacity mutation
       if (!materialsRef.current[colorHex]) {
         materialsRef.current[colorHex] = new THREE.MeshPhongMaterial({
           color: parseInt(colorHex),
@@ -93,12 +88,13 @@ export default function Visualizer({ repos, onRepoClick, detectedLanguages = [] 
           wireframe: false
         })
       }
-      const material = materialsRef.current[colorHex]
+      // Clone material per sphere to avoid shared opacity mutation
+      const material = materialsRef.current[colorHex].clone()
 
       // Create mesh
       const sphere = new THREE.Mesh(geometry, material)
       sphere.position.set(position.x, position.y, position.z)
-      sphere.userData = { repo, index }
+      sphere.userData = { repo: { ...repo, size }, index }
       sphere.castShadow = false
       sphere.receiveShadow = false
 
@@ -158,14 +154,12 @@ export default function Visualizer({ repos, onRepoClick, detectedLanguages = [] 
         controlsRef.current.update()
       }
 
-      // SPRINT 11: Viewport Culling - only render visible spheres
-      const frustum = new THREE.Frustum()
-      frustum.setFromProjectionMatrix(
-        new THREE.Matrix4().multiplyMatrices(
-          camera.projectionMatrix,
-          camera.matrixWorldInverse
-        )
+      // PERF FIX: Use ref-based frustum and matrix to avoid allocations
+      matrixRef.current.multiplyMatrices(
+        camera.projectionMatrix,
+        camera.matrixWorldInverse
       )
+      frustumRef.current.setFromProjectionMatrix(matrixRef.current)
 
       // Reset all sphere opacities
       spheresRef.current.forEach((sphere) => {
@@ -175,24 +169,24 @@ export default function Visualizer({ repos, onRepoClick, detectedLanguages = [] 
 
       // Apply viewport culling and language filter
       visibleSpheresRef.current = spheresRef.current.filter((sphere) => {
-        const inFrustum = frustum.containsPoint(sphere.position)
-        const matchesLanguage = 
-          !filteredLanguage || 
+        const inFrustum = frustumRef.current.containsPoint(sphere.position)
+        const matchesLanguage =
+          !filteredLanguage ||
           sphere.userData.repo.language?.toLowerCase() === filteredLanguage.toLowerCase()
-        
+
         sphere.visible = inFrustum && matchesLanguage
-        
+
         // Fade non-matching languages
         if (filteredLanguage && !matchesLanguage) {
           sphere.material.opacity = 0.1
           sphere.visible = true
         }
-        
+
         return inFrustum && matchesLanguage
       })
 
       // Animate visible spheres
-      sphereGroupRef.current?.children.forEach((sphere, index) => {
+      sphereGroupRef.current?.children.forEach((sphere) => {
         if (spheresRef.current.includes(sphere)) {
           sphereGroupRef.current.rotation.x += 0.00001
           sphereGroupRef.current.rotation.y += 0.00005
@@ -200,8 +194,10 @@ export default function Visualizer({ repos, onRepoClick, detectedLanguages = [] 
           sphere.rotation.x += 0.005
           sphere.rotation.y += 0.01
 
+          // PERF FIX: Use userData.index instead of relying on repos array index
+          const index = sphere.userData.index
           const pulse = Math.sin(elapsed * 2 + index * 0.1) * 0.1 + 1
-          const originalSize = repos[index]?.size || 1
+          const originalSize = sphere.userData.repo.size || 1
           const scale = pulse * originalSize
           sphere.scale.set(scale, scale, scale)
 
@@ -282,11 +278,11 @@ export default function Visualizer({ repos, onRepoClick, detectedLanguages = [] 
   useEffect(() => {
     if (!containerRef.current) return
 
-    const handleMouseMove = (event) => {
-      mouseRef.current.x = (event.clientX / window.innerWidth) * 2 - 1
-      mouseRef.current.y = -(event.clientY / window.innerHeight) * 2 + 1
-
-      const checkHover = debounce(() => {
+    // PERF FIX: Create debounced function OUTSIDE the handler to avoid creating new closures every mousemove
+    let debounceTimeout
+    const debouncedCheckHover = (event) => {
+      clearTimeout(debounceTimeout)
+      debounceTimeout = setTimeout(() => {
         raycasterRef.current.setFromCamera(mouseRef.current, camera)
         const intersects = raycasterRef.current.intersectObjects(visibleSpheresRef.current.length > 0 ? visibleSpheresRef.current : spheresRef.current)
 
@@ -315,8 +311,12 @@ export default function Visualizer({ repos, onRepoClick, detectedLanguages = [] 
           setTooltip(null)
         }
       }, 100)
+    }
 
-      checkHover()
+    const handleMouseMove = (event) => {
+      mouseRef.current.x = (event.clientX / window.innerWidth) * 2 - 1
+      mouseRef.current.y = -(event.clientY / window.innerHeight) * 2 + 1
+      debouncedCheckHover(event)
     }
 
     const handleMouseLeave = () => {
@@ -332,6 +332,7 @@ export default function Visualizer({ repos, onRepoClick, detectedLanguages = [] 
     containerRef.current.addEventListener('mouseleave', handleMouseLeave)
 
     return () => {
+      clearTimeout(debounceTimeout)
       containerRef.current?.removeEventListener('mousemove', handleMouseMove)
       containerRef.current?.removeEventListener('mouseleave', handleMouseLeave)
     }

@@ -1,41 +1,41 @@
 /* Theme CSS Variables */
 :root,
 [data-theme='dark'] {
-  --bg-primary: #0a0e27;
-  --bg-secondary: #1a1f3a;
-  --bg-tertiary: #2a2f4a;
+  --bg-primary: #1a1a1a;
+  --bg-secondary: #2d2d2d;
+  --bg-tertiary: #3d3d3d;
   --text-primary: #ffffff;
-  --text-secondary: #b0b3cc;
-  --text-muted: #787b9c;
+  --text-secondary: #b0b0b0;
+  --text-muted: #808080;
   --border-color: rgba(255, 255, 255, 0.1);
   --shadow-color: rgba(0, 0, 0, 0.3);
-  --header-bg: rgba(10, 14, 39, 0.8);
-  --button-bg: rgba(42, 47, 74, 0.6);
-  --button-hover-bg: rgba(42, 47, 74, 0.9);
-  --input-bg: rgba(26, 31, 58, 0.6);
-  --modal-bg: rgba(10, 14, 39, 0.95);
+  --header-bg: rgba(26, 26, 26, 0.8);
+  --button-bg: rgba(60, 60, 60, 0.6);
+  --button-hover-bg: rgba(60, 60, 60, 0.9);
+  --input-bg: rgba(45, 45, 45, 0.6);
+  --modal-bg: rgba(26, 26, 26, 0.95);
   --accent-1: #888888;
   --accent-2: #666666;
   --text-color: #ffffff;
 }
 
 [data-theme='light'] {
-  --bg-primary: #f8f9fc;
+  --bg-primary: #f8f9fa;
   --bg-secondary: #ffffff;
-  --bg-tertiary: #f0f2f9;
-  --text-primary: #1a1f3a;
+  --bg-tertiary: #f0f0f0;
+  --text-primary: #374151;
   --text-secondary: #4a4e65;
   --text-muted: #9a9eb5;
   --border-color: rgba(0, 0, 0, 0.08);
   --shadow-color: rgba(0, 0, 0, 0.08);
-  --header-bg: rgba(248, 249, 252, 0.8);
-  --button-bg: rgba(240, 242, 249, 0.6);
-  --button-hover-bg: rgba(240, 242, 249, 0.95);
+  --header-bg: rgba(248, 249, 250, 0.8);
+  --button-bg: rgba(240, 240, 240, 0.6);
+  --button-hover-bg: rgba(240, 240, 240, 0.95);
   --input-bg: rgba(255, 255, 255, 0.6);
-  --modal-bg: rgba(248, 249, 252, 0.95);
+  --modal-bg: rgba(248, 249, 250, 0.95);
   --accent-1: #444444;
   --accent-2: #555555;
-  --text-color: #1a1f3a;
+  --text-color: #374151;
 }
 
 * {

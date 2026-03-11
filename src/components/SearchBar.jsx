@@ -33,8 +33,8 @@ export default function SearchBar({ onSearch, loading, loadingPhase, error }) {
             placeholder="Enter GitHub username (e.g., torvalds)..."
             disabled={loading}
             className="search-input"
-            aria-label="GitHub username search"
-            aria-describedby="search-hint"
+            aria-label="GitHub username"
+            autoComplete="off"
           />
           <UsernameAutocomplete
             value={username}
@@ -46,26 +46,39 @@ export default function SearchBar({ onSearch, loading, loadingPhase, error }) {
           onClick={handleSearch}
           disabled={loading}
           className={`search-button ${loading ? 'loading' : ''}`}
-          aria-label={loading ? `Loading: ${loadingPhase}` : 'Visualize GitHub repositories'}
+          aria-label={loading ? 'Loading repositories' : 'Visualize repositories'}
         >
           {loading ? (
-            <span className="loading-content">
-              <span className="spinner" aria-hidden="true"></span>
-              <span className="loading-text">{loadingPhase}</span>
+            <span className="search-button-loading">
+              <span className="spinner" aria-hidden="true" />
+              <span>{loadingPhase || 'Loading…'}</span>
             </span>
           ) : (
             '🔍 Visualize'
           )}
         </button>
       </div>
+
+      {/* Loading progress indicator */}
+      {loading && loadingPhase && (
+        <div className="loading-progress" role="status" aria-live="polite">
+          <div className="loading-bar">
+            <div className="loading-bar-fill" />
+          </div>
+          <span className="loading-phase-text">{loadingPhase}</span>
+        </div>
+      )}
+
       {(error || localError) && (
         <p className="search-error" role="alert">
           ❌ {error || localError}
         </p>
       )}
-      <p className="search-hint" id="search-hint">
-        💡 Tip: Try "torvalds", "octocat", or any GitHub username
-      </p>
+      {!loading && !error && !localError && (
+        <p className="search-hint">
+          💡 Tip: Try "torvalds", "octocat", or any GitHub username
+        </p>
+      )}
     </div>
   )
 }

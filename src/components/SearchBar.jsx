@@ -33,6 +33,8 @@ export default function SearchBar({ onSearch, loading, loadingPhase, error }) {
             placeholder="Enter GitHub username (e.g., torvalds)..."
             disabled={loading}
             className="search-input"
+            aria-label="GitHub username search"
+            aria-describedby="search-hint"
           />
           <UsernameAutocomplete
             value={username}
@@ -57,11 +59,11 @@ export default function SearchBar({ onSearch, loading, loadingPhase, error }) {
         </button>
       </div>
       {(error || localError) && (
-        <p className="search-error">
+        <p className="search-error" role="alert">
           ❌ {error || localError}
         </p>
       )}
-      <p className="search-hint">
+      <p className="search-hint" id="search-hint">
         💡 Tip: Try "torvalds", "octocat", or any GitHub username
       </p>
     </div>

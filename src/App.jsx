@@ -284,6 +284,9 @@ function App() {
   return (
     <ThemeProvider>
       <div className="app">
+        <a href="#main-content" className="skip-link">
+          Skip to main content
+        </a>
         <Header />
 
         {/* Keyboard help modal */}
@@ -292,12 +295,20 @@ function App() {
           onClose={() => setShowHelpModal(false)}
         />
 
+        {/* Accessibility: Live region for announcements */}
+        <div aria-live="polite" aria-atomic="true" className="sr-only">
+          {loading && loadingPhase}
+          {!loading && repos.length > 0 && `Loaded ${repos.length} repositories for ${username}`}
+        </div>
+
         {/* 3D Visualizer */}
-        <Visualizer
-          repos={displayedRepos}
-          onRepoClick={handleRepoClick}
-          detectedLanguages={detectedLanguages}
-        />
+        <div id="main-content">
+          <Visualizer
+            repos={displayedRepos}
+            onRepoClick={handleRepoClick}
+            detectedLanguages={detectedLanguages}
+          />
+        </div>
 
         {/* Search Bar */}
         <SearchBar onSearch={handleSearch} loading={loading} loadingPhase={loadingPhase} error={error} />

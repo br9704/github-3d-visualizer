@@ -1,4 +1,43 @@
+import { useEffect, useRef } from 'react'
+
 export default function RepoDetails({ repo, onClose }) {
+  const modalRef = useRef(null)
+  const closeButtonRef = useRef(null)
+
+  useEffect(() => {
+    // Focus close button on mount
+    if (closeButtonRef.current) {
+      closeButtonRef.current.focus()
+    }
+
+    // Focus trap: keep Tab within modal
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        onClose()
+        return
+      }
+
+      if (e.key === 'Tab' && modalRef.current) {
+        const focusableElements = modalRef.current.querySelectorAll(
+          'button, a[href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+        )
+        const firstElement = focusableElements[0]
+        const lastElement = focusableElements[focusableElements.length - 1]
+
+        if (e.shiftKey && document.activeElement === firstElement) {
+          e.preventDefault()
+          lastElement.focus()
+        } else if (!e.shiftKey && document.activeElement === lastElement) {
+          e.preventDefault()
+          firstElement.focus()
+        }
+      }
+    }
+
+    document.addEventListener('keydown', handleKeyDown)
+    return () => document.removeEventListener('keydown', handleKeyDown)
+  }, [onClose])
+
   if (!repo) return null
 
   const formatDate = (dateString) => {
@@ -24,8 +63,12 @@ export default function RepoDetails({ repo, onClose }) {
         zIndex: 200
       }}
       onClick={onClose}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="repo-details-title"
     >
       <div
+        ref={modalRef}
         style={{
           background: '#1a1a1a',
           color: '#fff',
@@ -39,7 +82,7 @@ export default function RepoDetails({ repo, onClose }) {
         }}
         onClick={(e) => e.stopPropagation()}
       >
-        <h2 style={{ margin: '0 0 15px 0', color: '#888888' }}>
+        <h2 id="repo-details-title" style={{ margin: '0 0 15px 0', color: '#888888' }}>
           {repo.name}
         </h2>
         <p style={{ margin: '0 0 20px 0', fontSize: '14px', color: '#aaa' }}>
@@ -102,7 +145,9 @@ export default function RepoDetails({ repo, onClose }) {
         </a>
 
         <button
+          ref={closeButtonRef}
           onClick={onClose}
+          aria-label="Close repository details"
           style={{
             position: 'absolute',
             top: '15px',

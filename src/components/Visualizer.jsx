@@ -21,6 +21,7 @@ export default function Visualizer({ repos, onRepoClick, detectedLanguages = [] 
 
   // Keyboard state
   const keyStateRef = useRef({})
+  const currentTabIndexRef = useRef(0)
 
   // Tooltip state
   const [tooltip, setTooltip] = useState(null)
@@ -234,9 +235,13 @@ export default function Visualizer({ repos, onRepoClick, detectedLanguages = [] 
 
       if (e.key === 'Tab' && spheresRef.current.length > 0) {
         e.preventDefault()
-        // Cycle through repos
-        const next = Math.floor(Math.random() * spheresRef.current.length)
-        const sphere = spheresRef.current[next]
+        // Sequential keyboard navigation (fix for random Tab behavior)
+        if (e.shiftKey) {
+          currentTabIndexRef.current = (currentTabIndexRef.current - 1 + spheresRef.current.length) % spheresRef.current.length
+        } else {
+          currentTabIndexRef.current = (currentTabIndexRef.current + 1) % spheresRef.current.length
+        }
+        const sphere = spheresRef.current[currentTabIndexRef.current]
         onRepoClick(sphere.userData)
       }
 
@@ -423,6 +428,8 @@ export default function Visualizer({ repos, onRepoClick, detectedLanguages = [] 
     <>
       <div
         ref={containerRef}
+        role="application"
+        aria-label="3D visualization of GitHub repositories. Use mouse to rotate, scroll to zoom, click repositories for details, or press Tab to navigate through repositories."
         style={{
           width: '100vw',
           height: '100vh',

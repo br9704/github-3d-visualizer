@@ -51,19 +51,16 @@ export default function VisualizerOptimized({
 
   // Apply advanced filters
   useEffect(() => {
-    console.log('[VISUALIZER] Filter effect triggered', { 
       reposCount: repos?.length || 0,
       hasAdvancedFilters: !!(advancedFilters?.languages?.length || advancedFilters?.frameworks?.length || advancedFilters?.authorTypes?.length)
     })
 
     if (!repos || repos.length === 0) {
-      console.log('[VISUALIZER] No repos - clearing filtered list')
       setFilteredRepos([])
       return
     }
 
     if (advancedFilters && (advancedFilters.languages?.length || advancedFilters.frameworks?.length || advancedFilters.authorTypes?.length)) {
-      console.log('[VISUALIZER] Applying advanced filters...')
       const reposData = repos.map(r => r.repo)
       const filtered = applyAdvancedFilters(reposData, advancedFilters)
       const filteredIndices = new Set()
@@ -76,28 +73,23 @@ export default function VisualizerOptimized({
         })
       })
       const newFiltered = Array.from(filteredIndices)
-      console.log(`[VISUALIZER] Filtered: ${newFiltered.length}/${repos.length} repos match filters`)
       setFilteredRepos(newFiltered)
     } else {
-      console.log('[VISUALIZER] No filters applied - showing all repos')
       setFilteredRepos(repos.map((_, idx) => idx))
     }
   }, [advancedFilters, repos])
 
   // Create optimized scene with InstancedMesh
   useEffect(() => {
-    console.log('[VISUALIZER] Scene setup effect triggered', { 
       hasScene: !!scene, 
       reposCount: repos?.length || 0
     })
 
     if (!scene) {
-      console.warn('[VISUALIZER] Scene not ready - skipping mesh creation')
       return
     }
 
     if (!repos || repos.length === 0) {
-      console.log('[VISUALIZER] No repos yet - clearing scene geometry')
       if (sphereGroupRef.current) {
         scene.remove(sphereGroupRef.current)
         sphereGroupRef.current = null
@@ -107,12 +99,10 @@ export default function VisualizerOptimized({
       return
     }
 
-    console.log(`[VISUALIZER] Creating InstancedMesh for ${repos.length} repos...`)
 
     try {
       // Clear previous meshes
       if (sphereGroupRef.current) {
-        console.log('[VISUALIZER] Disposing previous geometry...')
         sphereGroupRef.current.traverse(child => {
           if (child.geometry) child.geometry.dispose()
           if (child.material) {
@@ -133,7 +123,6 @@ export default function VisualizerOptimized({
       const sphereGroup = new THREE.Group()
       sphereGroupRef.current = sphereGroup
       scene.add(sphereGroup)
-      console.log('[VISUALIZER] Sphere group added to scene')
 
       // Group repos by color for batching (InstancedMesh optimization)
       const reposByColor = {}
@@ -148,7 +137,6 @@ export default function VisualizerOptimized({
         reposByColor[colorHex].push({ repoData, index, size })
       })
 
-      console.log(`[VISUALIZER] Grouped repos by color: ${Object.keys(reposByColor).length} color batches`)
 
       // Create InstancedMesh for each color group
       let totalInstances = 0
@@ -189,11 +177,9 @@ export default function VisualizerOptimized({
         totalInstances += instanceCount
       })
 
-      console.log(`[VISUALIZER] ✓ Created ${totalInstances} instances across ${Object.keys(instancedMeshesRef.current).length} meshes`)
 
       // Auto-position camera to frame all content
       if (repos.length > 0) {
-        console.log('[VISUALIZER] Auto-positioning camera...')
         const boundingBox = new THREE.Box3().setFromObject(sphereGroup)
         const size = boundingBox.getSize(new THREE.Vector3())
         const maxDim = Math.max(size.x, size.y, size.z)
@@ -208,7 +194,6 @@ export default function VisualizerOptimized({
 
         // Setup OrbitControls
         if (controlsRef.current) {
-          console.log('[VISUALIZER] Disposing previous OrbitControls...')
           controlsRef.current.dispose()
         }
         const controls = new OrbitControls(camera, renderer.domElement)
@@ -221,16 +206,13 @@ export default function VisualizerOptimized({
         controls.target.copy(center)
         controls.update()
         controlsRef.current = controls
-        console.log('[VISUALIZER] ✓ OrbitControls configured')
       }
 
-      console.log('[VISUALIZER] ✓✓✓ Scene geometry setup COMPLETE')
     } catch (error) {
       console.error('[VISUALIZER] Error during mesh creation:', error)
     }
 
     return () => {
-      console.log('[VISUALIZER] Cleaning up meshes...')
       Object.values(instancedMeshesRef.current).forEach(mesh => {
         mesh.geometry?.dispose()
         mesh.material?.dispose()
@@ -240,7 +222,6 @@ export default function VisualizerOptimized({
 
   // Animation/Render loop - CRITICAL FUNCTION
   useEffect(() => {
-    console.log('[VISUALIZER] Animation effect triggered', { 
       hasScene: !!scene, 
       hasRenderer: !!renderer,
       hasCamera: !!camera,
@@ -250,7 +231,6 @@ export default function VisualizerOptimized({
 
     // Check if we have required Three.js components
     if (!scene || !renderer || !camera) {
-      console.warn('[VISUALIZER] Cannot start render loop - missing Three.js components', {
         scene: !!scene,
         renderer: !!renderer,
         camera: !!camera
@@ -266,7 +246,6 @@ export default function VisualizerOptimized({
       return
     }
 
-    console.log('[VISUALIZER] Starting render loop...')
     animationStartTimeRef.current = Date.now()
     let animationFrameId
     let frameCount = 0
@@ -338,7 +317,6 @@ export default function VisualizerOptimized({
           })
           
           if (fpsCounterRef.current.count === 0) {
-            console.warn('[VISUALIZER] FPS is 0 - renderer may not be updating')
           }
           
           fpsCounterRef.current.count = 0
@@ -354,11 +332,9 @@ export default function VisualizerOptimized({
 
     // Start animation loop
     animate()
-    console.log('[VISUALIZER] ✓ Render loop started')
 
     // Cleanup
     return () => {
-      console.log('[VISUALIZER] Stopping render loop...')
       cancelAnimationFrame(animationFrameId)
       setStats(prev => ({ ...prev, renderActive: false }))
     }
@@ -366,10 +342,8 @@ export default function VisualizerOptimized({
 
   // Click handler (raycasting with InstancedMesh)
   useEffect(() => {
-    console.log('[VISUALIZER] Setting up click handler...')
     
     if (!containerRef.current) {
-      console.warn('[VISUALIZER] Container ref not available for click handler')
       return
     }
 
@@ -389,18 +363,15 @@ export default function VisualizerOptimized({
         const repo = repoDataRef.current[repoKey]
 
         if (repo) {
-          console.log('[VISUALIZER] Repo clicked:', repo.name)
           onRepoClick({ repo })
         }
       }
     }
 
     containerRef.current.addEventListener('click', handleClick)
-    console.log('[VISUALIZER] ✓ Click handler attached')
     
     return () => {
       containerRef.current?.removeEventListener('click', handleClick)
-      console.log('[VISUALIZER] Click handler removed')
     }
   }, [camera, onRepoClick])
 

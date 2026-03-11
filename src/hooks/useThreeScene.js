@@ -28,7 +28,6 @@ export function useThreeScene(containerRef) {
 
     try {
       // STEP 1: Validate WebGL support
-      console.log('[THREE] Checking WebGL support...')
       const canvas = document.createElement('canvas')
       const webglContext = canvas.getContext('webgl') || canvas.getContext('webgl2')
       
@@ -38,26 +37,20 @@ export function useThreeScene(containerRef) {
         initErrorRef.current = errorMsg
         return
       }
-      console.log('[THREE] ✓ WebGL supported')
 
       // STEP 2: Create scene
-      console.log('[THREE] Creating Three.js scene...')
       const scene = new THREE.Scene()
       scene.background = new THREE.Color(0x000000) // Black background
       sceneRef.current = scene
-      console.log('[THREE] ✓ Scene created')
 
       // STEP 3: Get container dimensions and validate
       const width = containerRef.current.clientWidth
       const height = containerRef.current.clientHeight
-      console.log(`[THREE] Container dimensions: ${width}x${height}`)
       
       if (width === 0 || height === 0) {
-        console.warn('[THREE] Container has zero dimensions! Scene may not render.')
       }
 
       // STEP 4: Create camera
-      console.log('[THREE] Creating perspective camera...')
       const camera = new THREE.PerspectiveCamera(
         75,         // FOV
         width / height, // Aspect ratio
@@ -66,10 +59,8 @@ export function useThreeScene(containerRef) {
       )
       camera.position.z = 80
       cameraRef.current = camera
-      console.log('[THREE] ✓ Camera created at position', camera.position)
 
       // STEP 5: Create WebGL renderer
-      console.log('[THREE] Creating WebGL renderer...')
       const renderer = new THREE.WebGLRenderer({
         antialias: true,
         alpha: true,
@@ -87,37 +78,29 @@ export function useThreeScene(containerRef) {
       renderer.shadowMap.enabled = true
       renderer.shadowMap.type = THREE.PCFSoftShadowMap
       rendererRef.current = renderer
-      console.log('[THREE] ✓ Renderer created')
 
       // STEP 6: Append renderer to DOM
-      console.log('[THREE] Appending renderer DOM element to container...')
       containerRef.current.appendChild(renderer.domElement)
-      console.log('[THREE] ✓ Renderer DOM appended')
 
       // STEP 7: Add lights
-      console.log('[THREE] Adding lights to scene...')
       const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8)
       directionalLight.position.set(10, 15, 10)
       directionalLight.castShadow = true
       directionalLight.shadow.mapSize.width = 2048
       directionalLight.shadow.mapSize.height = 2048
       scene.add(directionalLight)
-      console.log('[THREE] ✓ Directional light 1 added')
 
       const directionalLight2 = new THREE.DirectionalLight(0xffffff, 0.4)
       directionalLight2.position.set(-10, -10, 5)
       scene.add(directionalLight2)
-      console.log('[THREE] ✓ Directional light 2 added')
 
       const ambientLight = new THREE.AmbientLight(0xffffff, 0.5)
       scene.add(ambientLight)
-      console.log('[THREE] ✓ Ambient light added')
 
       // STEP 8: Handle window resize
       const handleResize = () => {
         const w = containerRef.current?.clientWidth || window.innerWidth
         const h = containerRef.current?.clientHeight || window.innerHeight
-        console.log(`[THREE] Resizing renderer to ${w}x${h}`)
         
         camera.aspect = w / h
         camera.updateProjectionMatrix()
@@ -131,21 +114,16 @@ export function useThreeScene(containerRef) {
       }
 
       window.addEventListener('resize', debouncedResize)
-      console.log('[THREE] ✓ Resize handler registered')
 
       // STEP 9: Log completion
-      console.log('[THREE] ✓✓✓ Scene initialization COMPLETE')
-      console.log('[THREE] Scene is ready for rendering. Parent component should start animation loop.')
 
       // CLEANUP
       return () => {
-        console.log('[THREE] Cleaning up Three.js resources...')
         window.removeEventListener('resize', debouncedResize)
         clearTimeout(resizeTimeout)
         
         if (containerRef.current && renderer.domElement.parentNode === containerRef.current) {
           containerRef.current.removeChild(renderer.domElement)
-          console.log('[THREE] ✓ Renderer DOM removed')
         }
         
         // Dispose of resources
@@ -161,7 +139,6 @@ export function useThreeScene(containerRef) {
         })
         
         renderer.dispose()
-        console.log('[THREE] ✓ Resources disposed')
       }
     } catch (error) {
       const errorMsg = `Three.js initialization failed: ${error.message}`

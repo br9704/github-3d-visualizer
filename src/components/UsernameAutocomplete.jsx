@@ -49,7 +49,6 @@ export default function UsernameAutocomplete({ value, onChange, onSelect }) {
         setSuggestions(users)
         setIsOpen(true)
       } catch (error) {
-        console.warn('Autocomplete error:', error.message)
         setSuggestions([])
       }
     },

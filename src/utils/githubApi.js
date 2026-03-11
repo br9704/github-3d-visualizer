@@ -49,7 +49,6 @@ export async function fetchUserRepos(username, maxRepos = 100) {
 
       // RATE LIMIT CHECK: Stop early if fewer than 5 requests remaining
       if (remaining && parseInt(remaining) < 5) {
-        console.warn(
           `Rate limit low (${remaining} remaining). Stopping pagination.`
         )
         break
@@ -119,7 +118,6 @@ export async function fetchRepoReadme(
     }
     if (error.response?.status === 429) {
       // Rate limited on README fetch; don't retry, fail silently
-      console.warn(`Rate limited fetching README for ${repoName}`)
       return null
     }
     if (
@@ -128,7 +126,6 @@ export async function fetchRepoReadme(
     ) {
       // Linear backoff: 100ms → 200ms → 400ms
       const delay = backoffMs * (4 - retries)
-      console.warn(
         `README fetch failed for ${repoName}, retrying in ${delay}ms (attempts left: ${retries})`
       )
       await new Promise((r) => setTimeout(r, delay))
@@ -159,7 +156,6 @@ export async function fetchRepoReadmeBatch(
           readme: readme || 'No README found'
         }))
         .catch((err) => {
-          console.warn(`Error fetching README for ${repo.name}:`, err.message)
           return { ...repo, readme: 'No README found' }
         })
     )
@@ -192,7 +188,6 @@ export function getCachedRepos(username) {
       return cached.data
     }
   } catch (e) {
-    console.warn('Failed to read cache:', e)
   }
   return null
 }
@@ -207,7 +202,6 @@ export function cacheRepos(username, repos) {
       })
     )
   } catch (e) {
-    console.warn('Failed to cache repos:', e)
   }
 }
 

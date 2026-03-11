@@ -45,7 +45,6 @@ export default function ExportShare({ repos, username, filters }) {
 
     // Copy to clipboard
     navigator.clipboard.writeText(fullUrl).catch(() => {
-      console.log('Failed to copy to clipboard')
     })
   }
 

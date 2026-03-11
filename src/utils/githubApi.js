@@ -49,8 +49,6 @@ export async function fetchUserRepos(username, maxRepos = 100) {
 
       // RATE LIMIT CHECK: Stop early if fewer than 5 requests remaining
       if (remaining && parseInt(remaining) < 5) {
-          `Rate limit low (${remaining} remaining). Stopping pagination.`
-        )
         break
       }
 
@@ -126,8 +124,6 @@ export async function fetchRepoReadme(
     ) {
       // Linear backoff: 100ms → 200ms → 400ms
       const delay = backoffMs * (4 - retries)
-        `README fetch failed for ${repoName}, retrying in ${delay}ms (attempts left: ${retries})`
-      )
       await new Promise((r) => setTimeout(r, delay))
       return fetchRepoReadme(username, repoName, retries - 1, backoffMs)
     }

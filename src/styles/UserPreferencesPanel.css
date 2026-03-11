@@ -14,7 +14,7 @@
   transform: translateY(-50%);
   width: 340px;
   max-height: 85vh;
-  background: var(--panel-bg, rgba(15, 15, 20, 0.92));
+  background: var(--panel-bg, rgba(26, 26, 26, 0.92));
   border: 1px solid var(--border-color, rgba(99, 102, 241, 0.3));
   border-radius: 12px;
   backdrop-filter: blur(20px);

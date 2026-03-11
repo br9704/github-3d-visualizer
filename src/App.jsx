@@ -46,6 +46,7 @@ function App() {
   const [positionedRepos, setPositionedRepos]     = useState([])
   const [selectedRepo, setSelectedRepo]           = useState(null)
   const [loading, setLoading]                     = useState(false)
+  const [loadingPhase, setLoadingPhase]           = useState('')
   const [error, setError]                         = useState('')
   const [username, setUsername]                   = useState('')
   const [detectedLanguages, setDetectedLanguages] = useState([])
@@ -110,6 +111,7 @@ function App() {
    */
   const handleSearch = useCallback(async (searchUsername) => {
     setLoading(true)
+    setLoadingPhase('Fetching repos...')
     setError('')
     setUsername(searchUsername)
     setRepos([])
@@ -147,6 +149,7 @@ function App() {
       filtered = filtered.slice(0, maxRepos)
 
       // Fetch READMEs for first 20 repos
+      setLoadingPhase('Loading READMEs...')
       const reposWithReadme = await fetchRepoReadmeBatch(
         searchUsername,
         filtered.slice(0, 20)
@@ -157,6 +160,7 @@ function App() {
         ...filtered.slice(20).map((r) => ({ ...r, readme: null }))
       ]
 
+      setLoadingPhase('Building scene...')
       const positioned = calculatePositions(allRepos)
 
       // Extract unique languages
@@ -179,6 +183,7 @@ function App() {
       setPositionedRepos([])
     } finally {
       setLoading(false)
+      setLoadingPhase('')
     }
   }, [prefs])
 
@@ -295,7 +300,7 @@ function App() {
         />
 
         {/* Search Bar */}
-        <SearchBar onSearch={handleSearch} loading={loading} error={error} />
+        <SearchBar onSearch={handleSearch} loading={loading} loadingPhase={loadingPhase} error={error} />
 
         {/* Stats */}
         <StatsDisplay

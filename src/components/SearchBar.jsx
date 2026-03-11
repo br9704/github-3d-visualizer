@@ -2,7 +2,7 @@ import { useState } from 'react'
 import UsernameAutocomplete from './UsernameAutocomplete'
 import '../styles/SearchBar.css'
 
-export default function SearchBar({ onSearch, loading, error }) {
+export default function SearchBar({ onSearch, loading, loadingPhase, error }) {
   const [username, setUsername] = useState('')
   const [localError, setLocalError] = useState('')
 
@@ -44,8 +44,16 @@ export default function SearchBar({ onSearch, loading, error }) {
           onClick={handleSearch}
           disabled={loading}
           className={`search-button ${loading ? 'loading' : ''}`}
+          aria-label={loading ? `Loading: ${loadingPhase}` : 'Visualize GitHub repositories'}
         >
-          {loading ? '⏳ Searching...' : '🔍 Visualize'}
+          {loading ? (
+            <span className="loading-content">
+              <span className="spinner" aria-hidden="true"></span>
+              <span className="loading-text">{loadingPhase}</span>
+            </span>
+          ) : (
+            '🔍 Visualize'
+          )}
         </button>
       </div>
       {(error || localError) && (

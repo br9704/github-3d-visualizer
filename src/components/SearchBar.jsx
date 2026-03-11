@@ -29,7 +29,7 @@ export default function SearchBar({ onSearch, loading, error }) {
             type="text"
             value={username}
             onChange={(e) => setUsername(e.target.value)}
-            onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
+            onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
             placeholder="Enter GitHub username (e.g., torvalds)..."
             disabled={loading}
             className="search-input"

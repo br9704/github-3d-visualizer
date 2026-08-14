@@ -244,7 +244,10 @@ export class HeatmapGenerator {
       'rgba(255, 176, 0, 0.92)',  // 4 - amber
       'rgba(255, 201, 77, 1)'     // 5 - amber-bright
     ]
-    return colors[Math.min(5, Math.max(0, Math.floor(intensity)))]
+    // Math.floor(NaN) is NaN and survives both clamps, so colors[NaN] would be
+    // undefined and the cell would render with backgroundColor: undefined.
+    const level = Number.isFinite(intensity) ? Math.floor(intensity) : 0
+    return colors[Math.min(5, Math.max(0, level))]
   }
 
   /**

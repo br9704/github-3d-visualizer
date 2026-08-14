@@ -1,0 +1,83 @@
+name: CI
+
+# The badge in the README points at this workflow. It runs everything the
+# badge implies — unit tests, the design-system and honesty guards, a real
+# browser driving the built app, and the MOTION.md acceptance list. "It builds"
+# is not "it works", so a green build alone is not what turns the badge green.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  verify:
+    name: build · guards · tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Guards (design system + honesty)
+        run: npm run guards
+
+      - name: Unit tests
+        run: npm test
+
+  browser:
+    name: browser acceptance
+    runs-on: ubuntu-latest
+    needs: verify
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      # Chromium only. The suite drives WebGL through SwiftShader, and the
+      # other engines add minutes without adding coverage of anything this app
+      # does differently.
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Build
+        run: npm run build
+
+      - name: Serve the built app
+        run: |
+          npx vite preview --port 4173 &
+          npx wait-on http://localhost:4173 --timeout 60000
+
+      # GitHub is mocked from tests/fixtures, so CI never touches the network
+      # and can never be broken by GitHub's rate limit.
+      - name: MOTION.md acceptance
+        run: npm run motion-check
+
+      - name: Screenshots (both viewports, empty + populated + panels open)
+        run: npm run shots -- --tag ci --out artifacts --expand
+
+      - name: Upload screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: screenshots
+          path: artifacts/
+          retention-days: 14

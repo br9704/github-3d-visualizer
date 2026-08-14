@@ -1,5 +1,7 @@
 # 3D GitHub Visualizer
 
+[![CI](https://github.com/br9704/github-3d-visualizer/actions/workflows/ci.yml/badge.svg)](https://github.com/br9704/github-3d-visualizer/actions/workflows/ci.yml)
+
 Any GitHub profile rendered as a 3D universe. Each repository becomes an icosahedron sphere — sized by stars, coloured by language, positioned by age, star count and fork activity.
 
 **Live demo:** `[PLACEHOLDER — live URL]`
@@ -286,7 +288,6 @@ Tracked in [`masterplan.md`](masterplan.md).
 - Server-side GitHub token proxy, so the public demo is not limited to 60 req/hour
 - Deployment, and a live URL at the top of this file
 - Real screenshots and a recording of the entrance sequence
-- A test suite and CI — **there are currently no tests in this repository**
 - Three.js code-splitting to get the initial chunk under 500 kB
 
 ---
@@ -297,6 +298,33 @@ Tracked in [`masterplan.md`](masterplan.md).
 - `gvanrossum` — Python creator
 - `octocat` — GitHub's example account
 - `facebook` — large organisation
+
+---
+
+## Tests
+
+```bash
+npm test          # 74 unit tests (Vitest)
+npm run guards    # 10 design-system and honesty checks
+npm run shots     # real browser, both viewports, GitHub mocked
+npm run motion-check   # the MOTION.md acceptance list
+npm run perf      # frame-time measurement -> docs/perf.json
+```
+
+| Suite | What it covers |
+|---|---|
+| `tests/proxy.test.mjs` | The proxy's allowlist, token handling, cache split, rate-limit passthrough |
+| `tests/sceneGraph.test.mjs` | The gitpulse interchange contract, including a lossless round trip |
+| `tests/positioning.test.mjs` | Axis spread on power-law data, node separation, determinism |
+| `tests/scene.test.mjs` | Language colours and codes, easing curves, the seeded galaxy, liveness |
+| `tests/dom/services.test.mjs` | localStorage services under jsdom — annotations, snapshots, preferences |
+
+Nothing in the suite touches the network: GitHub is mocked from `tests/fixtures/github.mjs`, so a run can never be broken by the rate limit. CI runs all of the above plus a real browser against the built app, and uploads the screenshots as artifacts.
+
+Three bugs were found by writing these tests, not by looking at the app:
+- **C++ and C# rendered grey as "Other".** `"C++".toLowerCase()` is `c++`, but the colour map's key is `cpp`, so both fell through to the fallback. A grey sphere among grey spheres reads as data, not as a bug.
+- **`getIntensityColor(NaN)` returned `undefined`**, which would set a heatmap cell's `backgroundColor` to `undefined`.
+- The **easing overshoot** assertion is the one that would have caught `easeOutBack`, which the original entrance used and which the design system forbids.
 
 ---
 

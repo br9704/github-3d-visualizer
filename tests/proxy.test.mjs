@@ -7,12 +7,12 @@
  * successes and refuses to cache errors, and that it passes the rate-limit
  * signal through so the client can say "try again in 4m".
  *
- *   node --test tests/proxy.test.mjs
+ *   npm test
  *
  * Written with node:test so it runs with zero dependencies; S9 wires the same
  * assertions into the Vitest suite and CI.
  */
-import { test, describe, beforeEach, afterEach } from 'node:test'
+import { test, describe, beforeEach, afterEach, expect } from 'vitest'
 import assert from 'node:assert/strict'
 
 import handler from '../api/github/[...path].js'

@@ -24,6 +24,36 @@ const languageColors = {
 }
 
 /**
+ * GitHub's language names do not all survive naive normalisation.
+ *
+ * `"C++".toLowerCase().replace(/\s+/g, '')` is `c++`, but the map key is
+ * `cpp` — so C++ repositories were falling through to the grey "Other" bucket
+ * and being labelled `C+`. Same for C#, F# and Objective-C. Caught by a test,
+ * not by looking at a screenshot: a grey sphere among grey spheres reads as
+ * data, not as a bug.
+ */
+const languageAliases = {
+  'c++': 'cpp',
+  'c#': 'csharp',
+  'f#': 'fsharp',
+  'objective-c': 'objectivec',
+  'objective-c++': 'cpp',
+  'jupyternotebook': 'python',
+  'vue': 'javascript',
+  'shell': 'shell'
+}
+
+/**
+ * Normalise a GitHub language name to a map key.
+ * @param {string} language
+ * @returns {string}
+ */
+function languageKey(language) {
+  const raw = language.toLowerCase().replace(/\s+/g, '')
+  return languageAliases[raw] ?? raw
+}
+
+/**
  * Short monospace codes, used as the billboarded label on each node.
  *
  * Two or three characters, because the label has to stay readable at the size
@@ -56,8 +86,11 @@ const languageCodes = {
  */
 export function getLanguageCode(language) {
   if (!language) return '**'
-  const key = language.toLowerCase().replace(/\s+/g, '')
-  return languageCodes[key] || language.slice(0, 2).toUpperCase()
+  const key = languageKey(language)
+  if (languageCodes[key]) return languageCodes[key]
+  // Unknown language: use its own first characters rather than a generic
+  // marker, so two unmapped languages still read as different things.
+  return language.replace(/[^A-Za-z0-9+#]/g, '').slice(0, 2).toUpperCase() || '**'
 }
 
 /** Every distinct code that can appear, for building the label atlas. */
@@ -77,8 +110,7 @@ export function getLanguageInfo(language) {
     return { color: 0x888888, name: 'Other' }
   }
 
-  const key = language.toLowerCase().replace(/\s+/g, '')
-  return languageColors[key] || { color: 0x888888, name: 'Other' }
+  return languageColors[languageKey(language)] || { color: 0x888888, name: 'Other' }
 }
 
 /**

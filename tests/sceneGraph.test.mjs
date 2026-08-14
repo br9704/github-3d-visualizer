@@ -6,7 +6,7 @@
  * a producer is allowed to omit, what a reader must refuse, and whether a
  * round trip is lossless.
  */
-import { test, describe } from 'node:test'
+import { test, describe, expect } from 'vitest'
 import assert from 'node:assert/strict'
 
 import {

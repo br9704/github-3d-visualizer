@@ -192,6 +192,24 @@ check('README claims nothing the repo cannot back', () => {
   for (const m of readme.matchAll(/!\[[^\]]*\]\((?!https?:)([^)]+)\)/g)) {
     if (!fs.existsSync(m[1])) hits.push(`README.md  missing image: ${m[1]}`);
   }
+  // A CI badge must point at a workflow that exists and actually runs the
+  // suite. A badge for a workflow that only builds is the same overstatement
+  // as ten test reports against zero tests.
+  const badge = readme.match(/actions\/workflows\/([\w.-]+)\/badge\.svg/);
+  if (badge) {
+    const wf = `.github/workflows/${badge[1]}`;
+    if (!fs.existsSync(wf)) {
+      hits.push(`README.md  badge points at missing workflow ${wf}`);
+    } else {
+      const yml = fs.readFileSync(wf, 'utf8');
+      for (const required of ['npm test', 'npm run guards', 'npm run build']) {
+        if (!yml.includes(required)) {
+          hits.push(`${wf}  badge implies CI, but it never runs \`${required}\``);
+        }
+      }
+    }
+  }
+
   // A bare FPS number is only allowed if a measurement artifact exists.
   const fps = readme.match(/\b\d+\s*(?:FPS|fps)\b/g);
   if (fps && !fs.existsSync('docs/perf.json')) {

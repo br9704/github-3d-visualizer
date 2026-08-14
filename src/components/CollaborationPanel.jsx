@@ -1,6 +1,9 @@
 /**
- * CollaborationPanel Component
+ * CollaborationPanel Component — "Share & Annotate (local)" in the UI.
  * Three-tab panel for sharing, snapshotting, and annotating visualizations.
+ *
+ * NOT real-time collaboration. Everything here is localStorage plus URL params;
+ * there is no server and no multi-user sync. See collaborationService.js.
  *
  * Tabs:
  *  - Share  → generate & copy shareable URL, see current state summary
@@ -146,7 +149,7 @@ export default function CollaborationPanel({
       a.download = `github3dviz-collab-${Date.now()}.json`
       a.click()
       URL.revokeObjectURL(url)
-      showMessage('📦 Collaboration data exported!')
+      showMessage('📦 Local share data exported')
     } catch {
       showMessage('Export failed', 'error')
     }
@@ -421,7 +424,7 @@ export default function CollaborationPanel({
       <div className="collab-header" onClick={() => setExpanded(prev => !prev)}>
         <div className="collab-header-left">
           <span style={{ fontSize: 16 }}>🤝</span>
-          <span className="collab-header-title">Collaborate</span>
+          <span className="collab-header-title">Share &amp; Annotate (local)</span>
           <div className="collab-header-badges">
             {snapshots.length > 0 && (
               <span className="collab-badge">{snapshots.length} snapshots</span>

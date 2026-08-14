@@ -1,110 +1,92 @@
-# CLAUDE.md — AI Context for 3D GitHub Visualizer
+# CLAUDE.md — 3D GITHUB VISUALIZER
+# Any GitHub profile rendered as a 3D universe.
 
-This file provides context for AI assistants working on this codebase.
+Read this at the start of every session. `masterplan.md` (created in Phase 3 of `ENGINEERPROMPT.md`) is the source of truth for sequencing. `RESEARCH-CONTEXT.md` is the measured audit — read it before trusting the README, which currently overstates the project.
 
-## What This Project Is
+---
 
-A React + Three.js web app that visualizes any GitHub user's repositories as interactive 3D spheres. No backend — purely client-side with GitHub REST API calls and localStorage persistence.
+## Owner
 
-## Quick Orientation
+| | |
+|---|---|
+| Name | Bruno Jaamaa · jaamaabruno@gmail.com · GitHub `br9704` |
+| Repo | github.com/br9704/github-3d-visualizer |
+| Live URL | **None.** This is the central problem. |
 
-- **Entry:** `src/main.jsx` → `src/App.jsx`
-- **3D Scene:** `src/components/Visualizer.jsx` (animation loop, spheres, raycasting, hover/click)
-- **Scene Setup:** `src/hooks/useThreeScene.js` (WebGL renderer, camera, lights — no render loop)
-- **API:** `src/utils/githubApi.js` (fetch repos, READMEs, caching)
-- **Positioning:** `src/utils/positioning.js` (maps repo metadata → 3D coordinates)
-- **Colors:** `src/utils/colors.js` (language → hex color mapping)
-- **State:** All in `App.jsx` via React hooks (no Redux/Zustand)
+## What this is
 
-## Architecture Rules
+A Vite + React + Three.js SPA. A GitHub user's repos become icosahedron spheres — size ∝ √stars, colour by language, positioned by age/stars/forks. Orbit camera, click-to-detail with README preview, language filters, saved filter sets, JSON/CSV/screenshot export, shareable base64 URLs, heatmap modes, dark/light theme.
 
-1. **App.jsx owns all global state** — repos, filters, preferences, selected repo. Child components receive state via props.
-2. **Visualizer.jsx owns the render loop** — `useThreeScene` only initializes scene/camera/renderer. The `useEffect` in Visualizer runs `requestAnimationFrame`.
-3. **Services are stateless classes** — `userPreferences`, `collaborationService`, `dataExporter`, `filterSetsManager`, `heatmapGenerator` all operate on localStorage or pure data.
-4. **No shared materials** — Each sphere gets its own cloned material (so opacity/emissive can vary independently per sphere). Materials are cached by color but cloned on assignment.
-5. **Animation loop allocates nothing** — `Frustum` and `Matrix4` are pre-allocated in refs and reused every frame. Never `new` inside `animate()`.
+## Current state (verified in a real browser, Aug 2026)
 
-## Key Conventions
+`npm run build` → exit 0, 404 modules, 13.1s. 5,913 LOC / 41 files. No TODOs, no stubs. Console errors: none.
 
-- **Design system:** White/grey only. No blue, purple, or colored accents in UI. Accent color is `#888888`.
-- **CSS:** Component-specific files in `src/styles/`. Global styles in `App.css`. CSS custom properties for theming.
-- **JSDoc:** All exported functions should have JSDoc comments.
-- **Theme:** `ThemeContext.jsx` provides `isDark`/`toggleTheme`. Dark = `#0f0f0f` bg, Light = `#f8f8f8` bg.
-- **Accessibility:** Modals must have focus trap + `role="dialog"` + `aria-modal`. Use `aria-live` for dynamic content.
-- **No console.log:** All console statements were removed in a cleanup pass.
+**And it renders a near-blank white page.** Unstyled white background, browser-default typography, a floating search card, a **stray "Preferences" panel floating detached in the lower-left**, raw emoji (🌙 ❓ 🔍 ⚙️) as controls. No header, no branding, nothing 3D. The scene appears only after a successful search — which without a token fails on GitHub's 60 req/hr shared limit.
 
-## Build & Dev
+**A visitor sees a white page, then an error.** A build-level check missed all of this, which is exactly why the rule below exists.
 
-```bash
-npm run dev       # Vite dev server on localhost:5173
-npm run build     # Production build → dist/
-npm run preview   # Preview production build
-```
+## The rule this project exists to teach
 
-Build output: ~731KB JS (197KB gzip), ~49KB CSS (8.7KB gzip). Zero errors.
+> **"It builds" is not "it works." Every visual change is verified by opening it in a browser and looking at it.**
 
-## GitHub API Notes
+No sprint in this repo closes on a green build alone. Screenshot the result at 1440×900 and at 390×844, and look.
 
-- **Rate limit:** 60 requests/hour (unauthenticated)
-- **Pagination:** Max 100 repos/page, capped at 3 pages (300 repos)
-- **README batching:** 5 concurrent, 200ms between batches, 5s timeout per request
-- **Caching:** localStorage with 30-minute TTL (`repos_{username}` key)
-- **Error handling:** 404 → "user not found", 403/429 → rate limit message with reset time
+## Locked decisions (do not relitigate)
 
-## Three.js Specifics
+- **The empty state IS the product.** Most visitors will never type a username. Design the landing and empty state before touching bundle size, tests, or a Three.js upgrade.
+- **The token proxy is mandatory before deploy.** A serverless `/api/github` holds a PAT server-side (5,000 req/hr instead of 60) with edge caching, since most demo traffic hits a handful of famous usernames. Deploying without it is pointless. **The PAT must never reach the client bundle.**
+- **Deploy target: Vercel** — serverless functions for the proxy come free in the same project.
+- **Claim only what the code does.** The README's "Collaboration" section is localStorage + URL-param state sharing; `src/services/collaborationService.js` says so in its own header comment. Rename it "Share & Annotate (local)".
+- **Docs are not process artifacts.** 40 markdown files, ~10 named `TEST_REPORT_*.md`, claim comprehensive testing against **zero tests**. Keep README + CHANGELOG; delete the rest. Never commit an agent-process report to this repo again.
+- **No LICENSE currently exists** despite MIT claims in the docs. Add one.
 
-- **Geometry:** `IcosahedronGeometry` with LOD detail (4/2/1 based on repo count)
-- **Material:** `MeshPhongMaterial` with emissive glow, cloned per sphere
-- **Camera:** `PerspectiveCamera` at FOV 75, auto-positioned based on bounding box
-- **Controls:** `OrbitControls` from three-stdlib (auto-rotate, damping, zoom)
-- **Shadows:** Disabled (saves ~16MB GPU memory)
-- **Culling:** Manual frustum culling in animation loop + Three.js automatic
-- **Entrance:** Spheres scale from 0 → baseSize with easeOutBack easing, staggered 20ms apart
+## Known issues
 
-## Performance-Sensitive Areas
+- 731 kB single bundle (197 kB gzip) — Three.js not code-split; Vite warns.
+- Three.js pinned at 0.159, old by Aug 2026. Assess upgrade cost vs benefit; do not upgrade for its own sake. `three-stdlib` must move in lockstep.
+- README hero image is a literal `via.placeholder.com` URL. No screenshot of the product exists.
+- Every commit authored by **"OpenClaw Bot" `<bot@openclaw.com>`**, publicly visible. ~12 consecutive visible commits are cosmetic colour swaps. Rewriting authorship is an `ask_human` decision — it force-pushes public history.
+- The portfolio claims **"60fps on 100+ repos"**. Unverified. Profile it and evidence it, or the copy changes.
 
-1. **`Visualizer.jsx` animate()` function** — Runs 60x/sec. No allocations, no array creation, no closures.
-2. **Hover detection** — Debounced at 50ms. Raycasts only against `visibleSpheresRef` (culled set).
-3. **Sphere creation** — Geometry and material cached. LOD scales with repo count.
+---
 
-## Testing
+## Aethereum sync — required workflow (canonical block, identical across every project)
 
-No automated test framework. Manual testing checklist in various `TEST_REPORT_*.md` files.
+This project coordinates through Aethereum. Account config lives at `~/.aethereum/config.json` and this machine is already logged in.
 
-## File Inventory (src/)
+- **First session:** run `aethereum init` in the repo root and create/join this project's room.
+- **`share_intent`** — one line at the start of every sprint, before any code. Marking a task complete without having shared intent for its sprint is a workflow violation.
+- **`declare_contract`** — for every interface other code consumes. Here: the GitHub API response shape and the scene-graph format (which is also gitpulse's `--export` target).
+- **`record_decision`** — at every architectural fork or irreversible choice, with the *why*. Here especially: the authorship rewrite and the proxy/caching design.
+- **`ask_human`** — whenever the decision is Bruno's: spending money, publishing, deleting, rewriting git history, naming, or anything with an external side effect. Do not guess and do not block — keep working other tasks until answered.
+- **`record_verification`** — at every sprint gate, pass/fail with evidence. For this repo, evidence means a screenshot.
 
-| File | Lines | Role |
-|------|-------|------|
-| `App.jsx` | ~280 | Root component, global state, search orchestration |
-| `Visualizer.jsx` | ~400 | Three.js scene, animation, interaction |
-| `useThreeScene.js` | ~120 | Scene/camera/renderer init + cleanup |
-| `githubApi.js` | ~165 | GitHub API calls, caching, rate limit handling |
-| `positioning.js` | ~70 | 3D coordinate calculation |
-| `colors.js` | ~35 | Language color map |
-| `userPreferences.js` | ~220 | Preferences CRUD (localStorage) |
-| `collaborationService.js` | ~300 | Sharing, snapshots, comments |
-| `dataExporter.js` | ~270 | JSON/CSV/screenshot export |
-| `filterSetsManager.js` | ~260 | Filter set CRUD |
-| `heatmapGenerator.js` | ~285 | Heatmap data generation |
-| `ThemeContext.jsx` | ~25 | Dark/light theme context |
-| Components (15) | ~30-150 each | UI panels and controls |
+## Masterplan discipline (canonical block)
 
-## Common Tasks
+The masterplan is the **single source of truth for sequencing**. This file is the source of truth for *rules*. Precedence on conflict: masterplan (sequencing) > CLAUDE.md (rules) > ENGINEERPROMPT.md (kickoff).
 
-### Add a new language color
-Edit `src/utils/colors.js`, add to `languageColors` object:
-```js
-yourlang: { color: 0xRRGGBB, name: 'YourLang' }
-```
+- Status keys, used live in the file as work happens: `[ ]` not started · `[~]` in progress · `[x]` complete · `[⏭]` deferred (always with a one-line reason).
+- **Never delete or rewrite masterplan content.** Expand it in place — add sub-tasks, file paths, edge cases, findings. Deepen, don't replace.
+- Mark tasks as you go, never batched at the end of a session.
+- A sprint closes only when its acceptance criteria pass. Then: fill the **As-shipped delta** and **Deferred** notes, move the Current-sprint pointer, and update the Current-state line at the bottom of this file.
+- Never skip a sprint. Never partially complete one and move on.
+- Stop and report at every sprint close before starting the next.
 
-### Add a new panel/feature
-1. Create component in `src/components/YourPanel.jsx`
-2. Create styles in `src/styles/YourPanel.css`
-3. Wire into `App.jsx` (state + render)
-4. Follow grey design system — no colored accents
+## Honesty rules (canonical block)
 
-### Modify sphere appearance
-Edit `Visualizer.jsx` — look for the `repos.forEach` in the sphere creation `useEffect`.
+- Never state a number in a README, the site, or any public copy that a committed artifact cannot back.
+- Verified counts only — never restate a figure from memory.
+- If a claim and the code disagree, that is a bug in one of them. Fix it or flag it; never leave it ambiguous.
+- `[PLACEHOLDER — description]` for anything unknown. Never invent content.
 
-### Change positioning algorithm
-Edit `src/utils/positioning.js` — the `calculatePositions()` function.
+---
+
+## Current state
+
+> Update at every sprint close.
+
+**Current state:** Builds clean, renders blank, not deployed, no tests, 40 process markdown files, bot authorship. No masterplan yet — create one in Phase 3 of `ENGINEERPROMPT.md`. Honesty pass and token proxy are Sprint 0 and 1.
+
+## MOTION.md (binding)
+
+`MOTION.md` in this folder is the animation specification — sequences, timings, per-surface rules, acceptance gates. It has the same authority as this file. When you author `masterplan.md` in Phase 3, fold its acceptance checklist into the relevant sprint gates and reference it from the plan.

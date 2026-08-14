@@ -1,7 +1,25 @@
 node_modules
 dist
+.env
 .env.local
-.vscode
 *.log
 npm-debug.log
 .DS_Store
+
+# Editor / IDE
+.vscode
+.idea
+
+# Agent + coordination wiring — machine-specific absolute paths, never ship these
+.mcp.json
+.claude/settings.json
+.claude/settings.local.json
+.cursor/
+.codex/
+opencode.json
+AGENTS.md
+GEMINI.md
+
+# Local verification artifacts
+playwright-report/
+test-results/

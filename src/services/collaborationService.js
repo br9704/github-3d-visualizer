@@ -1,6 +1,11 @@
 /**
- * CollaborationService
+ * CollaborationService — surfaced in the UI as "Share & Annotate (local)".
  * Enables sharing and annotation of GitHub 3D visualizations.
+ *
+ * This is NOT real-time collaboration. There is no server and no multi-user
+ * sync: state travels in a URL param, annotations live in this browser's
+ * localStorage. Public copy must say "Share & Annotate (local)", never
+ * "Collaboration".
  *
  * Features (client-side / localStorage-based, no backend required):
  *  - Generate shareable URLs encoding username + filters + camera state

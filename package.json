@@ -1,7 +1,15 @@
 {
-  "name": "github-3d-viz",
+  "name": "github-3d-visualizer",
   "private": true,
   "version": "0.0.1",
+  "description": "Any GitHub profile rendered as a 3D universe. Repositories become spheres sized by stars, coloured by language, positioned by age and popularity.",
+  "license": "MIT",
+  "author": "Bruno Jaamaa <jaamaabruno@gmail.com>",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/br9704/github-3d-visualizer.git"
+  },
+  "homepage": "https://github.com/br9704/github-3d-visualizer#readme",
   "type": "module",
   "scripts": {
     "dev": "vite",

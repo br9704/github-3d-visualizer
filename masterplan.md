@@ -5,7 +5,7 @@
 Status keys, marked live as work happens — never batched:
 `[ ]` not started · `[~]` in progress · `[x]` complete · `[⏭]` deferred (always with a one-line reason)
 
-**Current sprint pointer:** S8
+**Current sprint pointer:** S9
 
 ---
 
@@ -308,14 +308,28 @@ The true blocker for a usable deployment: `githubApi.js` sends no `Authorization
 
 ---
 
-## S8 — gitpulse scene-graph import `[ ]`
+## S8 — gitpulse scene-graph import `[x]`
 
-- [ ] `declare_contract` the scene-graph JSON as a **frozen** interface — this is gitpulse's `--export` target.
-- [ ] Import path: drop a scene JSON, or `?scene=<url>`, as an alternative to a GitHub username.
-- [ ] Schema validation with a terminal-voice error on mismatch.
-- [ ] Round-trip fixture: export from this app → import → identical scene.
+- [x] `declare_contract` **SceneGraph v1 [frozen]**, with five behavioural properties and two worked examples — a spec, not just a shape.
+- [x] Import path: **drop a file anywhere on the page**, or `?scene=<url>` for a shareable link.
+- [x] Validation with terminal-voice errors that list **every** problem at once.
+- [x] Round trip made real: `dataExporter` gained the write side, so export → import is testable rather than theoretical.
 
-**Acceptance:** fixture round-trips; malformed input produces `> invalid scene graph — expected v1`, not a crash.
+**Acceptance:** ✅ 14 contract tests including a lossless round trip; browser checks confirm `?scene=` loads and a malformed graph is refused with `format must be "github-3d-visualizer/scene", got "something/else"`.
+
+**As-shipped delta:**
+
+- **Two contract decisions worth keeping:**
+  1. **Layout is optional.** A producer that only knows about repositories should not have to invent 3D coordinates — omit `position`/`size` and this app computes them. A producer that *has* a layout can pin it.
+  2. **Layout is all-or-nothing.** Honoured only if *every* node carries it. Half a layout would put some nodes at meaningful coordinates and the rest at the origin, which renders as a bug rather than as data.
+- **A reader refuses an unknown `version`** rather than best-effort parsing it. Guessing produces a silently wrong picture, which is worse than refusing.
+- **Imported nodes become ordinary repo objects**, so the detail panel, filters, exporters and heatmaps all work unchanged instead of needing a second code path.
+- **A bug in my own harness, worth recording:** routing `**/example-scene.json` in Playwright *also* matched the page URL `/?scene=/example-scene.json`, because that string ends with the same characters. The glob served JSON in place of the app's HTML, nothing mounted, and the failure read like a product bug. Route matching is on `pathname` now.
+- The aethereum pre-commit gate flagged the commit as touching a frozen contract. That is ordering noise on a first implementation — the contract was declared before the commit that creates its files — not a real violation.
+- `docs/example-scene.json` ships as the reference file.
+- Commit `7c478bf`.
+
+**Deferred:** nothing.
 
 ---
 

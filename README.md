@@ -55,19 +55,20 @@ Local-only. There is no server and no real-time sync — state is shared by copy
 - **Import / export** — portable JSON of your local annotations and snapshots
 
 ### UX and accessibility
-- **Dark / light theme** — system preference detection plus a manual toggle
-- **Responsive breakpoints** — desktop, tablet and mobile
-- **Focus-trapped repository dialog** — `aria-modal`, focus restoration on close (`src/components/RepoDetails.jsx`)
+- **One theme** — a warm-black instrument palette (SIGNAL). There is deliberately no light theme and no toggle.
+- **Responsive** — verified at 1440×900 and 390×844; the control rail becomes a bottom sheet on small screens
+- **Focus-trapped dialogs** — `aria-modal`, Tab trapped inside, focus restored on close (`RepoDetails.jsx`, `KeyboardHelpModal.jsx`)
 - **Screen reader support** — `aria-live` region for load state, skip link, ARIA roles
 - **Loading phases** — three-stage progress (fetching repos → loading READMEs → building scene)
 - **Keyboard help** — press `?`
+- **Keyboard navigation** — `j`/`k` move between control modules, `↵` opens one
 
 ### Performance techniques
 Implemented; not yet independently profiled. See [Roadmap](#roadmap) — a measured frame-time figure replaces this section once it exists.
 
 - **Frustum culling** — off-screen spheres are skipped in the render loop
 - **LOD scaling** — geometry detail `4` under 50 repos, `2` from 50–150, `1` above 150
-- **Geometry caching** — one geometry per distinct sphere size
+- **One shared geometry** — a single unit-radius icosahedron instanced by per-mesh scale, not one geometry per size
 - **Pre-allocated `Frustum` and `Matrix4`** — reused every frame instead of allocated per frame
 - **Shadow maps disabled** — nothing in the scene casts or receives shadows
 - **Debounced raycasting** — 50 ms debounce on hover detection
@@ -81,8 +82,8 @@ Implemented; not yet independently profiled. See [Roadmap](#roadmap) — a measu
 |---|---|---|
 | UI framework | React | 18.2 |
 | Build tool | Vite | 5.0 (builds as 5.4.21) |
-| 3D engine | Three.js | 0.159 |
-| Camera controls | three-stdlib (`OrbitControls`) | 2.36 |
+| 3D engine | Three.js | 0.185.1 |
+| Camera controls | `three/addons/controls/OrbitControls` | — |
 | HTTP client | Axios | 1.6 |
 | Styling | CSS custom properties | — |
 | Persistence | `localStorage` | — |
@@ -128,7 +129,8 @@ src/
 │   ├── ColorLegend.jsx               # Language colour reference
 │   ├── StatsDisplay.jsx              # Load state and repo count
 │   ├── LanguageFilter.jsx            # Language filter
-│   ├── Header.jsx                    # Title bar and theme toggle
+│   ├── Header.jsx                    # Instrument bar and status readout
+│   ├── HudLayout.jsx                 # Owns every fixed position in the app
 │   ├── KeyboardHelpModal.jsx         # Shortcut reference
 │   ├── Pagination.jsx                # Load more repositories
 │   ├── ExportShare.jsx               # Quick export and share controls
@@ -148,15 +150,25 @@ src/
 │   ├── filterSetsManager.js          # Filter set CRUD
 │   └── heatmapGenerator.js           # Heatmap data generation
 │
-├── contexts/
-│   └── ThemeContext.jsx              # Theme provider
-│
 ├── utils/
 │   ├── githubApi.js                  # GitHub REST calls and caching
 │   ├── positioning.js                # 3D coordinate calculation
 │   └── colors.js                     # Language → colour mapping
 │
-└── styles/                           # Per-component CSS
+└── styles/
+    ├── signal.css                    # The design system: palette, type, motion
+    ├── HudLayout.css                 # Regions, and the only file that positions chrome
+    └── …                             # Per-component CSS
+```
+
+Outside `src/`:
+
+```
+scripts/
+├── guards.mjs                        # 10 design-system and honesty checks (npm run guards)
+├── shots.mjs                         # Real-browser screenshots, GitHub mocked (npm run shots)
+└── histcmp.mjs                       # Rotation-tolerant screenshot comparison
+tests/fixtures/github.mjs             # Deterministic GitHub fixtures
 ```
 
 ---
@@ -172,6 +184,8 @@ src/
 | Hover a sphere | Show tooltip |
 | `Tab` / `Shift+Tab` | Cycle through repositories |
 | `+` / `-` | Zoom |
+| `j` / `k` | Move between control modules |
+| `↵` | Open the focused module |
 | `?` or `/` | Keyboard help |
 | `Escape` | Close dialog |
 
@@ -179,12 +193,12 @@ src/
 
 ## Measured build output
 
-From `npm run build` on 2026-08-14 (Vite 5.4.21, 404 modules, terser):
+From `npm run build` on 2026-08-14 (Vite 5.4.21, terser, Three.js 0.185.1):
 
 | Asset | Raw | Gzip |
 |---|---|---|
-| `dist/assets/index-*.js` | 731.75 kB | 197.00 kB |
-| `dist/assets/index-*.css` | 49.17 kB | 8.69 kB |
+| `dist/assets/index-*.js` | 796.74 kB | 212.10 kB |
+| `dist/assets/index-*.css` | 64.24 kB | 12.24 kB |
 | `dist/index.html` | 0.47 kB | 0.30 kB |
 
 Vite warns that the JS chunk exceeds its 500 kB threshold — Three.js is not code-split yet. See [Roadmap](#roadmap).

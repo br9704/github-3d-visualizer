@@ -5,7 +5,7 @@
 Status keys, marked live as work happens — never batched:
 `[ ]` not started · `[~]` in progress · `[x]` complete · `[⏭]` deferred (always with a one-line reason)
 
-**Current sprint pointer:** S2
+**Current sprint pointer:** S3
 
 ---
 
@@ -116,14 +116,31 @@ The sprint that makes the page stop being white. Design system is **inherited, n
 
 ---
 
-## S2 — HUD architecture `[ ]`
+## S2 — HUD architecture `[x]`
 
-- [ ] Replace the 11 independent `position: fixed` panels with one `HudLayout` owning fixed regions: top bar, left rail, right drawer, bottom readout.
-- [ ] Dock `UserPreferencesPanel`, `FilterSetsManager`, `DataExportPanel`, `AdvancedHeatmaps`, `CollaborationPanel`, `ColorLegend`, `LanguageFilter`, `Pagination`, `ExportShare`, `RepoDetails` into it.
-- [ ] Panels become collapsible instrument modules with `j/k/↵/esc` keyboard nav — the portfolio's directory-listing idiom.
-- [ ] Real responsive behaviour at 390×844. Today the panels overlap and fall off-screen.
+- [x] Replace the 11 independent `position: fixed` panels with one `HudLayout` owning four regions: **rail-left, rail-right, dock-bottom, search slot** (plus the header, which is its own fixed bar).
+- [x] Dock `UserPreferencesPanel`, `FilterSetsManager`, `DataExportPanel`, `AdvancedHeatmaps`, `CollaborationPanel`, `ColorLegend`, `LanguageFilter`, `Pagination`, `ExportShare`, `StatsDisplay` into it. `RepoDetails` stays an overlay dialog (it becomes the S5 drawer).
+- [x] Panels become collapsible instrument modules with `j/k/↵` nav (`Esc` already closes dialogs).
+- [x] Real responsive behaviour at 390×844.
 
-**Acceptance:** screenshots at both sizes with every panel open and closed. Nothing overlaps, nothing floats detached, nothing off-screen at 390px.
+**Acceptance:** ✅ screenshots at both sizes in three states — empty, populated, and **every panel open**. Nothing overlaps, nothing floats detached, nothing off-screen at 390px.
+
+**As-shipped delta:**
+
+- **The search now has two states.** It was covering the universe it had just produced. Centred hero before a scene exists; docked under the header, compact, once repos are on screen.
+- **Panel headers were clickable `<div>`s** — unreachable by keyboard entirely. They are `<button>`s now, so the browser's own focus order works and `j/k` has something real to move between.
+- **New guard: "only HudLayout positions chrome."** The eleven-independent-`position:fixed` problem is now mechanically prevented, not just fixed once.
+
+*Three defects that only appeared once the panels were expanded — which is why `scripts/shots.mjs` gained `--expand`:*
+
+1. **Inverted token roles.** S1's colour map knew each colour's *text* role only, so `#fff` used as a **background** became `var(--text-primary)` → light cards with dark-on-light text inside dark panels. 43 declarations corrected, plus a new guard so a text token can never be a background again.
+2. **Unbalanced CSS from S1.** The `var(--x, fallback)` rewrite stopped at the first `)`, leaving a stray paren on 12 declarations. Those were invalid and silently dropped by the browser — which is why the panels had no visible surface in the S1 screenshots.
+3. **The heatmap ramp ran the wrong way.** `getIntensityColor` went light grey → near-black. On a warm-black ground that renders the *most active* repositories closest to invisible. Now an amber phosphor ramp, dark → bright.
+
+- Radios and checkboxes lost the browser's blue; tab rows wrap instead of scrolling earlier tabs out of sight; count badges are hairline rather than filled chips.
+- Commit `65af116`.
+
+**Deferred:** two cosmetic items inside panel bodies — a metadata line still renders in the body font, and one radio label wraps awkwardly at 296px. Neither affects layout integrity; folded into S6 polish. Scene framing (cluster sits high-left with dead space) is scene work, deferred to S4 as planned.
 
 ---
 

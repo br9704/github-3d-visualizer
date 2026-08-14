@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, useCallback, useMemo } from 'react'
 import * as THREE from 'three'
-import { OrbitControls } from 'three-stdlib'
+// three ships OrbitControls itself; three-stdlib was a second copy of it.
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
 import { useThreeScene } from '../hooks/useThreeScene'
 import { getLanguageInfo } from '../utils/colors'
 import '../styles/Tooltip.css'

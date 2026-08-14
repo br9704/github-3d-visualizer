@@ -4,9 +4,16 @@ Any GitHub profile rendered as a 3D universe. Each repository becomes an icosahe
 
 **Live demo:** `[PLACEHOLDER — live URL]`
 
-`[PLACEHOLDER — hero recording of the entrance sequence]`
+![The entrance sequence: an ambient galaxy on cold load, dissolving as a profile's repositories grow into place](docs/hero.gif)
+
+*Recorded from the running app. The profile is a deterministic fixture, not a real account — so the asset stays reproducible and does not put someone else's repository names in this README.*
 
 > **Status:** not yet deployed. The app currently calls the GitHub REST API directly from the browser with no token, so it shares the 60 req/hour unauthenticated per-IP limit. A server-side token proxy lands before deployment — see [Roadmap](#roadmap).
+
+| | |
+|---|---|
+| ![Empty state](docs/empty-desktop.png) | ![Loaded profile](docs/scene-desktop.png) |
+| **Cold load.** No API call, no rate limit — a seeded ambient galaxy so the first ten seconds are never blank. | **A loaded profile.** Size ∝ √stars, colour by language, position by age / stars / forks. |
 
 ---
 

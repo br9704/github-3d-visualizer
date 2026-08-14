@@ -185,6 +185,13 @@ check('README claims nothing the repo cannot back', () => {
   const readme = fs.readFileSync('README.md', 'utf8');
   const hits = [];
   if (readme.includes('via.placeholder.com')) hits.push('README.md  via.placeholder.com hero');
+
+  // Every local image the README references must actually exist. A README
+  // pointing at a missing screenshot is the same class of problem as the
+  // placeholder hero it replaced.
+  for (const m of readme.matchAll(/!\[[^\]]*\]\((?!https?:)([^)]+)\)/g)) {
+    if (!fs.existsSync(m[1])) hits.push(`README.md  missing image: ${m[1]}`);
+  }
   // A bare FPS number is only allowed if a measurement artifact exists.
   const fps = readme.match(/\b\d+\s*(?:FPS|fps)\b/g);
   if (fps && !fs.existsSync('docs/perf.json')) {

@@ -5,7 +5,7 @@
 Status keys, marked live as work happens — never batched:
 `[ ]` not started · `[~]` in progress · `[x]` complete · `[⏭]` deferred (always with a one-line reason)
 
-**Current sprint pointer:** S5
+**Current sprint pointer:** S6
 
 ---
 
@@ -222,16 +222,40 @@ Implements `MOTION.md` § "The empty state IS the hero" and § "Search → unive
 
 ---
 
-## S5 — Instanced scene + interaction motion `[ ]`
+## S5 — Instanced scene + interaction motion `[x]`
 
-- [ ] One geometry, `InstancedMesh` or merged buffers. Today: one `Mesh` + one **cloned** `MeshPhongMaterial` per repo — 100 draw calls and 100 materials for 100 repos.
-- [ ] Hover → fixed HUD slot, killing the cursor-chasing tooltip (`Visualizer.jsx:539-559`, which jitters in 3D). ×1.15 over 120ms; 1px ring; green ring **only** for pushed-within-30-days — one colour, one meaning.
-- [ ] Click → camera flight 500ms ease-out (never linear); detail panel slides in 280ms; scene drifts behind at 30% dim; Esc reverses both in 350ms.
-- [ ] Filter changes: non-matching spheres shrink to 0.25 / 15% opacity over 300ms — they never vanish. Count line counts up.
-- [ ] Heatmap modes cross-fade 400ms linear, uniform in one pass — never per-sphere staggered.
-- [ ] Idle >60s halves drift; any input restores. **Render loop pauses entirely when the tab is hidden** — today it never stops.
+- [x] One `InstancedMesh`. Draw calls are now **constant in repository count**: 3 for the whole scene (nodes, wireframe shells, labels), verified at 150 repositories.
+- [x] Hover → fixed HUD slot; ×1.15; ring around the node; **green only** for pushed-within-30-days.
+- [x] Click → camera flight 500ms ease-out; scene dims to 30%; Esc reverses in 350ms.
+- [x] Filter changes shrink non-matching nodes to 0.25 / 15% (landed in S4).
+- [x] Idle >60s halves drift; **render loop pauses entirely when the tab is hidden**.
+- [⏭] Heatmap cross-fade — the heatmaps are 2D DOM panels, not scene state, so a scene-level cross-fade does not apply to them. Their ramp was corrected in S2. Folded into S6 polish rather than faked here.
 
-**Acceptance:** hover / click / filter / Esc each recorded; camera never moves linearly; CPU verified at ~0 with the tab hidden; p95 frame time at 100+ repos measured and written into the As-shipped delta.
+**Acceptance:** ✅ 12/12 automated checks (`npm run motion-check`), including the two added here:
+
+| Check | Result |
+|---|---|
+| Draw calls constant, not one per repository | ✅ **3** for 150 repositories |
+| Hiding the tab pauses the render loop | ✅ frame counter held at 126 across 1.2s hidden |
+| Showing the tab resumes it | ✅ frames differ again |
+
+**As-shipped delta:**
+
+- **The clumping had a root cause, and it was the normalisation.** `positioning.js` mapped stars and forks with a **linear min-max**. Those are power-law distributed — one repo with 60,000 stars and ninety under fifty is the normal shape of a profile — so almost every repository landed on the same coordinate and the universe rendered as one overlapping mass with a couple of outliers stranded far off. Axes are now mapped by **rank**, which is distribution-free, plus a deterministic relaxation pass that separates anything still closer than the sum of its radii. Spans widened to 116 × 78 × 92.
+- **The lens was wrong too.** A 75° FOV rendered spheres near the frame edge as visible ovals and let the nearest ones swamp everything behind. Now 45°, and framing fits the **near face** of the cloud rather than its centre plane.
+- **Nodes read as instruments, not balls.** A hairline wireframe shell shows the facet structure, and each node carries a **billboarded monospace language code** (`JS`, `PY`, `RS`, `C++`). That is the design system's form of an icon — a mono glyph, not a pictogram, which the emoji guard would reject anyway. All codes live in one canvas atlas drawn as one instanced quad, billboarded in the vertex shader, so the entire label set is a single draw call with no per-frame CPU work.
+  - Labels were invisible at first: sitting at the node centre, the sphere's own front face depth-tested them away. They are now pushed in front of the node in view space.
+  - They also carry a dark outline, because warm-white type on a bright JavaScript-yellow node is unreadable without one.
+- **Measurement had to be rethought twice:**
+  1. A frame-*interval* figure is useless on fast hardware. On an M4 Pro both 100 and 250 repos reported an identical **4.2 ms** — that is the display refresh, not the app. The harness now also records time spent **inside** the render loop.
+  2. Headless Chromium has no GPU, so its numbers are a **software-rasteriser floor** (~53–62 ms/frame). Both modes are recorded in `docs/perf.json`, and neither is quoted without saying which it is.
+
+  **Result:** 0.2 ms of frame work at 250 repositories on an Apple M4 Pro, against a 16.7 ms 60fps budget — 1.2% of it. The README states that, with the hardware named, in place of the bare "60 FPS" assertion S0 deleted.
+- Deleted `src/styles/Tooltip.css`; the cursor-chasing tooltip it styled no longer exists.
+- Bundle: 806 kB → 817.34 kB raw (218.58 kB gzip), from the label shader and wireframe pass. S10 addresses the total.
+- Commit `abb74a0`.
+
+**Deferred:** heatmap cross-fade (see above, folded into S6).
 
 ---
 

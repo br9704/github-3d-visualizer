@@ -21,6 +21,7 @@ import ExportShare from './components/ExportShare'
 import Pagination from './components/Pagination'
 import Header from './components/Header'
 import HudLayout from './components/HudLayout'
+import SceneImport from './components/SceneImport'
 import KeyboardHelpModal from './components/KeyboardHelpModal'
 import FilterSetsManager from './components/FilterSetsManager'
 import DataExportPanel from './components/DataExportPanel'
@@ -31,6 +32,7 @@ import { userPreferences } from './services/userPreferences'
 import { collaborationService } from './services/collaborationService'
 import { fetchUserRepos, fetchRepoReadmeBatch } from './utils/githubApi'
 import { calculatePositions } from './utils/positioning'
+import { toSceneGraph } from './scene/sceneGraph'
 import './styles/signal.css'
 import './App.css'
 
@@ -66,6 +68,30 @@ function App() {
   /** Fired when the entrance sequence finishes, so the readout can print a
       measured settle time rather than an estimate. */
   const handleSettled = useCallback(() => {}, [])
+
+  /**
+   * Load a scene graph produced elsewhere (gitpulse's --export, or this app's
+   * own export). Imported nodes become ordinary repo objects, so every
+   * existing consumer — detail panel, filters, exporters, heatmaps — works
+   * unchanged rather than needing a second code path.
+   */
+  const handleSceneImport = useCallback((result, source) => {
+    const positioned = result.positioned ?? calculatePositions(result.repos)
+
+    setRepos(result.repos)
+    setPositionedRepos(positioned)
+    setUsername(result.subject?.login || 'imported scene')
+    setError('')
+    setSelectedRepo(null)
+    setCurrentPage(1)
+    setTotalRepos(result.repos.length)
+    setStarCount(result.repos.reduce((sum, r) => sum + (r.stargazers_count || 0), 0))
+    setRenderMs(null)
+    setDetectedLanguages(
+      [...new Set(result.repos.map((r) => r.language).filter(Boolean).map((l) => l.toLowerCase()))].sort()
+    )
+    userDataRef.current = { username: result.subject?.login || null, importedFrom: source }
+  }, [])
 
   /** Measured frame times from the render loop. Exposed on window so the perf
       harness (scripts/perf.mjs) can read them without a dev-only build. */
@@ -365,6 +391,8 @@ function App() {
             />
 
             <UserPreferencesPanel onPreferencesChange={handlePreferencesChange} />
+
+            <SceneImport onImport={handleSceneImport} active={!hasScene} />
 
             {hasScene && (
               <>

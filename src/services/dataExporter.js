@@ -1,3 +1,4 @@
+import { toSceneGraph } from '../scene/sceneGraph'
 /**
  * DataExporter - Export visualization data in multiple formats
  * Supports JSON, CSV, and visualization snapshots
@@ -269,3 +270,19 @@ export class DataExporter {
 
 // Export class directly (all methods are static)
 export const dataExporter = DataExporter
+
+
+/**
+ * Export the current view as a scene graph.
+ *
+ * This is the WRITE side of the same contract SceneImport reads, which is what
+ * makes the round trip testable: export -> import must reproduce the scene
+ * exactly. gitpulse's `--export` targets this format.
+ *
+ * @param {Array<{repo: object, position: {x,y,z}, size: number}>} positioned
+ * @param {string} username
+ * @returns {string} JSON
+ */
+export function exportSceneGraph(positioned, username) {
+  return JSON.stringify(toSceneGraph(positioned, { login: username }), null, 2)
+}

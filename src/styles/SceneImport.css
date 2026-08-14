@@ -1,0 +1,57 @@
+/* SceneImport — the read side of the gitpulse scene-graph contract. */
+
+.scene-import-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s2);
+  width: 100%;
+  padding: var(--s2) var(--s3);
+  border-bottom: var(--hair) solid var(--hairline);
+  text-align: left;
+  cursor: pointer;
+}
+
+.scene-import-title {
+  font-family: var(--font-mono);
+  font-size: var(--fs-label);
+  letter-spacing: var(--tracking-label);
+  text-transform: lowercase;
+  color: var(--text-primary);
+}
+
+.scene-import-body {
+  padding: var(--s2) var(--s3) var(--s3);
+}
+
+.scene-import-hint {
+  color: var(--text-dim);
+  line-height: 1.6;
+}
+
+.scene-import-note {
+  margin-top: var(--s2);
+  font-size: var(--fs-label);
+}
+
+.scene-import-errors {
+  margin-top: var(--s2);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s1);
+  font-size: var(--fs-label);
+  word-break: break-word;
+}
+
+/* Whole-window drop target. Dropping onto a small box is fiddly. */
+.scene-drop {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-modal);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(5, 5, 5, 0.82);
+  border: var(--hair) dashed var(--amber);
+  pointer-events: none;
+}

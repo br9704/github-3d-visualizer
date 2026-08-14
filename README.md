@@ -112,6 +112,43 @@ Behaviour is covered by [`tests/proxy.test.mjs`](tests/proxy.test.mjs) — 13 te
 
 ---
 
+## Scene graph (gitpulse interchange)
+
+The visualiser reads a portable scene-graph format, so a profile is not the only way to fill it. [gitpulse](https://github.com/br9704)'s `--export` targets this format.
+
+- **drop a `.json` file anywhere on the page**, or
+- open `?scene=<url>` — a shareable link rather than a file
+
+```jsonc
+{
+  "format": "github-3d-visualizer/scene",
+  "version": 1,
+  "generator": "gitpulse 0.4.2",
+  "subject": { "login": "torvalds" },
+  "nodes": [
+    {
+      "id": "torvalds/linux",     // required, unique
+      "label": "linux",           // required
+      "language": "C",
+      "stars": 190000,
+      "forks": 55000,
+      "createdAt": "2011-09-04T22:19:36Z",
+      "pushedAt": "2026-08-01T10:12:00Z",
+      "position": { "x": 12.4, "y": -3.1, "z": 8.8 },  // optional
+      "size": 3.2                                      // optional
+    }
+  ]
+}
+```
+
+**Layout is optional.** A producer that only knows about repositories does not have to invent 3D coordinates — omit `position` and `size` and this app computes them. A producer that *has* a layout it cares about can pin it. Layout is honoured only if **every** node carries it; a half-positioned graph would put some nodes at meaningful coordinates and the rest at the origin, which reads as a bug rather than as data.
+
+A reader **refuses an unknown `version`** rather than guessing, and reports every validation problem at once rather than one at a time.
+
+Reference file: [`docs/example-scene.json`](docs/example-scene.json). Contract tests: [`tests/sceneGraph.test.mjs`](tests/sceneGraph.test.mjs) — 14 tests including a lossless round trip.
+
+---
+
 ## Tech stack
 
 | Layer | Technology | Version |

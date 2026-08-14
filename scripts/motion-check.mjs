@@ -301,6 +301,60 @@ async function ready(page) {
   await ctx.close();
 }
 
+/* ── 7. Scene-graph import: ?scene=<url> ────────────────────────────────── */
+{
+  const graph = JSON.parse(fs.readFileSync('docs/example-scene.json', 'utf8'));
+  const { ctx, page } = await newPage();
+  // Match on the PATHNAME, not a glob. `**/example-scene.json` also matches
+  // the page URL `/?scene=/example-scene.json`, because that string ends with
+  // the same characters — so the glob served JSON in place of the app's HTML
+  // and nothing mounted at all.
+  await ctx.route(
+    (url) => url.pathname === '/example-scene.json',
+    (r) =>
+      r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(graph) })
+  );
+  await page.goto(`${BASE}/?scene=/example-scene.json`, { waitUntil: 'networkidle' });
+  await page.waitForTimeout(5000);
+
+  const readout = await page.locator('.stats').innerText().catch(() => '');
+  const sig = await sceneSignature(page);
+  await page.screenshot({ path: path.join(OUT, 'motion-scene-import.png') });
+
+  record(
+    'a scene graph loads from ?scene=<url>',
+    new RegExp(`${graph.nodes.length}\\s*repos`).test(readout),
+    JSON.stringify(readout.trim().split('\n').join(' '))
+  );
+  record('the imported scene renders', sig.bright > 4000, `${sig.bright} bright samples`);
+  await ctx.close();
+}
+
+/* ── 8. A malformed scene graph is refused, in the app's voice ──────────── */
+{
+  const { ctx, page } = await newPage();
+  await ctx.route(
+    (url) => url.pathname === '/broken.json',
+    (r) =>
+      r.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ format: 'something/else', version: 99, nodes: [] })
+      })
+  );
+  await page.goto(`${BASE}/?scene=/broken.json`, { waitUntil: 'networkidle' });
+  await page.waitForTimeout(2000);
+
+  const alert = await page.locator('[role="alert"]').first().innerText().catch(() => '');
+  await page.screenshot({ path: path.join(OUT, 'motion-scene-invalid.png') });
+  record(
+    'a malformed scene graph is refused with a readable reason',
+    /format must be|unsupported version/i.test(alert),
+    JSON.stringify(alert.trim().split('\n')[0])
+  );
+  await ctx.close();
+}
+
 await browser.close();
 
 const failed = results.filter((r) => !r.pass);

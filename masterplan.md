@@ -5,7 +5,7 @@
 Status keys, marked live as work happens — never batched:
 `[ ]` not started · `[~]` in progress · `[x]` complete · `[⏭]` deferred (always with a one-line reason)
 
-**Current sprint pointer:** S7
+**Current sprint pointer:** S8
 
 ---
 
@@ -281,18 +281,30 @@ For a visual project this is worth more than any feature.
 
 ---
 
-## S7 — Token proxy `/api/github` (mock-verified) `[ ]`
+## S7 — Token proxy `/api/github` (mock-verified) `[x]`
 
 The true blocker for a usable deployment: `githubApi.js` sends no `Authorization` header, so every visitor shares GitHub's 60 req/hr unauthenticated IP limit — tightened further in May 2025.
 
-- [ ] Vercel Node function. The PAT rides the **outbound** fetch only; incoming requests carry no `Authorization`, which is what keeps responses cacheable.
-- [ ] `Vercel-CDN-Cache-Control` long edge TTL + short browser `Cache-Control` + `stale-while-revalidate`. The CDN cache is the first line of PAT-budget defence — most demo traffic hits the same handful of famous usernames.
-- [ ] Per-IP throttle via `@vercel/firewall` `checkRateLimit`. Vercel WAF rate-limiting is available on all plans including Hobby (1 rule/project, fixed window, keyed on IP, 429). Caveat: WAF counters and cache are per-region.
-- [ ] `vercel.json` — SPA rewrites + function config.
-- [ ] `src/utils/githubApi.js` switches to `/api/github/*` with a documented dev fallback.
-- [ ] `declare_contract` for the GitHub API response shape.
+- [x] Vercel Node function at `api/github/[...path].js`. The PAT rides the **outbound** fetch only.
+- [x] `Vercel-CDN-Cache-Control: s-maxage=1800, stale-while-revalidate=86400` + browser `max-age=60`. **Errors are never cached** (`no-store`).
+- [x] Per-IP throttle via `@vercel/firewall`, **failing open** — the cache is the primary budget defence and a throttle outage should not take the demo down.
+- [x] `vercel.json` — function config, immutable caching for hashed assets, baseline security headers.
+- [x] Client switched to `/api/github/*`, including the autocomplete, which was still calling `api.github.com` directly.
+- [x] `declare_contract` — `GET /api/github/*`, with **five behavioural properties**, not just a shape.
 
-**Acceptance:** mocked end-to-end test passes for success / 404 / 403-rate-limited; `grep` over `dist/` proves no token string can reach the client bundle; cache headers asserted in test.
+**Acceptance:** ✅ 13/13 tests against a mocked upstream; no token can reach the bundle; cache headers asserted.
+
+**As-shipped delta:**
+
+- **An allowlist, not a passthrough.** Four endpoint patterns are proxied; everything else returns 403 and never reaches GitHub. Without it, `/api/github/<anything>` would be an **open proxy authenticating with our token** — including `/user`, which would reveal whose token it is. Tested with a path-traversal attempt and non-GET methods.
+- **One code path, not a production-only branch.** `vite.config.js` proxies `/api/github` to GitHub in dev *and* preview (unauthenticated), so the client always calls the same URL. The alternative — branching on `import.meta.env.DEV` — would mean the deployed path is the one nothing local ever exercises.
+- **The no-token leak is proved, not asserted.** Built with `GITHUB_TOKEN` set to a sentinel and grepped `dist/` for both the value *and* the variable name. Neither appears; the function is not part of the client build.
+- **Query parameters are bounded and allowlisted**, so `per_page=9999` clamps to 100 and an unknown `client_secret` is dropped rather than forwarded.
+- `.env.example` documents that a **fine-grained "Public repositories (read-only)"** token suffices — no account scope.
+- Harness fragility found and fixed: a slow first paint surfaced as a 30s `page.fill` timeout deep in a later check, reading like a product bug rather than a cold start. The checks now wait for mount and fail with a clear message.
+- Commit `0f99dde`.
+
+**Deferred to S11 (owner-gated):** creating the PAT, setting it in Vercel, adding the WAF rule in the dashboard, and confirming `x-vercel-cache: HIT` against production.
 
 ---
 

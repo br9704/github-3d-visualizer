@@ -101,6 +101,7 @@
 .hud-rail > .data-export-panel,
 .hud-rail > .advanced-heatmaps,
 .hud-rail > .collaboration-panel,
+.hud-rail > .scene-import,
 .hud-rail > .stats,
 .hud-rail > .legend,
 .hud-rail > .langf,
@@ -140,7 +141,8 @@
 .hud-rail > .filter-sets-manager,
 .hud-rail > .data-export-panel,
 .hud-rail > .advanced-heatmaps,
-.hud-rail > .collaboration-panel {
+.hud-rail > .collaboration-panel,
+.hud-rail > .scene-import {
   background: rgba(5, 5, 5, 0.78);
   backdrop-filter: blur(8px);
   border: var(--hair) solid var(--hairline);

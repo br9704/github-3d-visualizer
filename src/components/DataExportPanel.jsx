@@ -145,11 +145,11 @@ export default function DataExportPanel({ repos, username }) {
         className="export-header"
         onClick={() => setExpanded(!expanded)}
       >
-        <div className="export-title">
-          <span className="icon">📥</span>
-          <span>Data Export</span>
+        <div className="export-title export-header-title">
+          <span className="icon">↓</span>
+          <span>export</span>
         </div>
-        <span className="toggle">{expanded ? '▼' : '▶'}</span>
+        <span className="toggle">{expanded ? '▾' : '▸'}</span>
       </div>
 
       {expanded && (
@@ -167,25 +167,25 @@ export default function DataExportPanel({ repos, username }) {
               className={`tab ${exportFormat === 'json' ? 'active' : ''}`}
               onClick={() => setExportFormat('json')}
             >
-              📄 JSON
+              json
             </button>
             <button
               className={`tab ${exportFormat === 'csv' ? 'active' : ''}`}
               onClick={() => setExportFormat('csv')}
             >
-              📊 CSV
+              csv
             </button>
             <button
               className={`tab ${exportFormat === 'snapshot' ? 'active' : ''}`}
               onClick={() => setExportFormat('snapshot')}
             >
-              📸 Snapshot
+              snapshot
             </button>
             <button
               className={`tab ${exportFormat === 'metadata' ? 'active' : ''}`}
               onClick={() => setExportFormat('metadata')}
             >
-              📋 Metadata
+              metadata
             </button>
           </div>
 
@@ -215,7 +215,7 @@ export default function DataExportPanel({ repos, username }) {
                 </label>
               </div>
               <button className="export-btn" onClick={handleExportJSON}>
-                📥 Export as JSON
+                export json →
               </button>
             </div>
           )}
@@ -229,7 +229,7 @@ export default function DataExportPanel({ repos, username }) {
                   className="toggle-columns-btn"
                   onClick={() => setShowCustomColumns(!showCustomColumns)}
                 >
-                  {showCustomColumns ? '▼' : '▶'} Customize Columns
+                  {showCustomColumns ? '▾' : '▸'} Customize Columns
                 </button>
                 {showCustomColumns && (
                   <div className="column-selector">
@@ -251,7 +251,7 @@ export default function DataExportPanel({ repos, username }) {
                 <span>~{dataExporter.formatFileSize(csvSize)}</span>
               </div>
               <button className="export-btn" onClick={handleExportCSV}>
-                📥 Export as CSV
+                export csv →
               </button>
             </div>
           )}
@@ -262,10 +262,10 @@ export default function DataExportPanel({ repos, username }) {
               <h4>Export Visualization Snapshot</h4>
               <div className="snapshot-info">
                 <p>Capture current 3D visualization as PNG image</p>
-                <p className="tip">💡 Tip: Rotate/zoom before exporting for best angles</p>
+                <p className="tip">note: rotate and zoom before exportings</p>
               </div>
               <button className="export-btn" onClick={handleExportSnapshot}>
-                📸 Capture Snapshot
+                capture snapshot →
               </button>
             </div>
           )}
@@ -299,16 +299,16 @@ export default function DataExportPanel({ repos, username }) {
                 </div>
               </div>
               <button className="export-btn" onClick={handleExportMetadata}>
-                📋 Export Metadata
+                export metadata →
               </button>
             </div>
           )}
 
           {/* Export Stats */}
           <div className="export-stats">
-            <span>📦 Exporting {repos.length} repositories</span>
-            <span>👤 User: {username}</span>
-            <span>🕐 {new Date().toLocaleDateString()}</span>
+            <span>{repos.length} repositories</span>
+            <span>user @{username}</span>
+            <span>{new Date().toLocaleDateString()}</span>
           </div>
         </div>
       )}

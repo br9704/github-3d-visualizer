@@ -32,13 +32,17 @@ export function useThreeScene(containerRef) {
       const webglContext = canvas.getContext('webgl2') || canvas.getContext('webgl')
 
       if (!webglContext) {
-        setInitError('WebGL is not supported on this browser. Please use a modern browser (Chrome, Firefox, Safari, Edge).')
+        setInitError(
+          'webgl unavailable — this browser cannot render the scene'
+        )
         return
       }
 
       // STEP 2: Create scene
       const scene = new THREE.Scene()
-      scene.background = new THREE.Color(0x000000)
+      // Transparent: the page's warm black (--bg #050505) is the ground, so
+      // the CSS grid plane and CRT vignette layers read through the canvas.
+      scene.background = null
       sceneRef.current = scene
 
       // STEP 3: Get container dimensions with fallback

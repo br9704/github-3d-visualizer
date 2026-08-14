@@ -1,205 +1,148 @@
 import { useEffect, useRef } from 'react'
+import '../styles/RepoDetails.css'
 
 /**
- * RepoDetails modal — displays repository information with README preview.
- * Implements WCAG AA focus management: focus trap, focus restoration on close,
- * Escape key to dismiss, and proper ARIA attributes.
+ * RepoDetails — the repository readout.
+ *
+ * Focus management: focus trap, focus restoration on close, Escape to dismiss,
+ * `aria-modal`. This is the dialog the README points at when it claims focus
+ * management — the claim is true here, and true in KeyboardHelpModal.
+ *
+ * MOTION.md (S5): this becomes a right-hand drawer that slides in over 280ms
+ * while the camera flies to the selected sphere. Today it is a centred dialog.
  *
  * @param {Object} props
  * @param {Object} props.repo - GitHub repository object
- * @param {function(): void} props.onClose - Called when the modal should close
+ * @param {function(): void} props.onClose - Called when the dialog should close
  */
 export default function RepoDetails({ repo, onClose }) {
   const dialogRef = useRef(null)
   const previousFocusRef = useRef(null)
 
-  // Focus trap + restore focus on close
   useEffect(() => {
     if (!repo) return
 
-    // Store currently focused element to restore later
     previousFocusRef.current = document.activeElement
-
-    // Focus the dialog
-    const timer = setTimeout(() => {
-      dialogRef.current?.focus()
-    }, 50)
+    const timer = setTimeout(() => dialogRef.current?.focus(), 50)
 
     const handleKeyDown = (e) => {
       if (e.key === 'Escape') {
         onClose()
         return
       }
+      if (e.key !== 'Tab') return
 
-      // Trap Tab within the dialog
-      if (e.key === 'Tab') {
-        const dialog = dialogRef.current
-        if (!dialog) return
+      const focusable = dialogRef.current?.querySelectorAll(
+        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+      )
+      if (!focusable || focusable.length === 0) return
 
-        const focusable = dialog.querySelectorAll(
-          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
-        )
-        if (focusable.length === 0) return
+      const first = focusable[0]
+      const last = focusable[focusable.length - 1]
 
-        const first = focusable[0]
-        const last = focusable[focusable.length - 1]
-
-        if (e.shiftKey) {
-          if (document.activeElement === first) {
-            e.preventDefault()
-            last.focus()
-          }
-        } else {
-          if (document.activeElement === last) {
-            e.preventDefault()
-            first.focus()
-          }
-        }
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault()
+        last.focus()
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault()
+        first.focus()
       }
     }
 
     window.addEventListener('keydown', handleKeyDown)
-
     return () => {
       window.removeEventListener('keydown', handleKeyDown)
       clearTimeout(timer)
-      // Restore focus to previous element
       previousFocusRef.current?.focus()
     }
   }, [repo, onClose])
 
   if (!repo) return null
 
-  const formatDate = (dateString) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
+  const formatDate = (s) =>
+    new Date(s).toLocaleDateString('en-GB', {
       year: 'numeric',
       month: 'short',
       day: 'numeric'
     })
-  }
+
+  const stats = [
+    ['stars', repo.stargazers_count],
+    ['forks', repo.forks_count],
+    ['issues', repo.open_issues_count],
+    ['watchers', repo.watchers_count]
+  ]
+
+  const hasReadme = repo.readme && repo.readme !== 'No README found'
 
   return (
-    <div
-      style={{
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        background: 'rgba(0, 0, 0, 0.8)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        zIndex: 200
-      }}
-      onClick={onClose}
-      role="presentation"
-    >
+    <div className="rd-overlay" onClick={onClose} role="presentation">
       <div
         ref={dialogRef}
+        className="rd-dialog"
         role="dialog"
         aria-modal="true"
         aria-labelledby="repo-details-title"
         tabIndex={-1}
-        style={{
-          background: '#1a1a1a',
-          color: '#fff',
-          padding: '30px',
-          borderRadius: '8px',
-          maxWidth: '600px',
-          maxHeight: '80vh',
-          overflow: 'auto',
-          border: '2px solid #888888',
-          position: 'relative',
-          outline: 'none',
-          animation: 'modalFadeIn 0.2s ease-out'
-        }}
         onClick={(e) => e.stopPropagation()}
       >
-        <h2 id="repo-details-title" style={{ margin: '0 0 15px 0', color: '#888888' }}>
-          {repo.name}
-        </h2>
-        <p style={{ margin: '0 0 20px 0', fontSize: '14px', color: '#aaa' }}>
-          {repo.description || 'No description available'}
-        </p>
-
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: '1fr 1fr',
-            gap: '15px',
-            margin: '20px 0',
-            fontSize: '14px'
-          }}
-        >
-          <div>⭐ Stars: <strong>{repo.stargazers_count?.toLocaleString()}</strong></div>
-          <div>🍴 Forks: <strong>{repo.forks_count?.toLocaleString()}</strong></div>
-          <div>🔤 Language: <strong>{repo.language || 'N/A'}</strong></div>
-          <div>📅 Updated: <strong>{formatDate(repo.updated_at)}</strong></div>
-          <div>🔔 Issues: <strong>{repo.open_issues_count?.toLocaleString()}</strong></div>
-          <div>👁️ Watchers: <strong>{repo.watchers_count?.toLocaleString()}</strong></div>
+        <div className="rd-head">
+          <h2 id="repo-details-title" className="rd-title">
+            {repo.name}
+          </h2>
+          <button
+            className="rd-close"
+            onClick={onClose}
+            aria-label="Close repository details"
+          >
+            ✕
+          </button>
         </div>
 
-        {repo.readme && repo.readme !== 'No README found' && (
-          <div style={{ marginTop: '20px' }}>
-            <h3 style={{ margin: '0 0 10px 0' }}>README Preview</h3>
-            <pre
-              style={{
-                background: '#000',
-                padding: '15px',
-                borderRadius: '4px',
-                fontSize: '11px',
-                maxHeight: '200px',
-                overflow: 'auto',
-                border: '1px solid #888888',
-                color: '#aaa',
-                whiteSpace: 'pre-wrap',
-                wordBreak: 'break-word'
-              }}
-            >
-              {repo.readme}
-            </pre>
-          </div>
-        )}
+        <div className="rd-body">
+          <p className="rd-desc">
+            {repo.description || 'no description'}
+          </p>
 
-        <a
-          href={repo.html_url}
-          target="_blank"
-          rel="noopener noreferrer"
-          style={{
-            display: 'inline-block',
-            marginTop: '20px',
-            padding: '12px 24px',
-            background: '#888888',
-            color: '#fff',
-            textDecoration: 'none',
-            borderRadius: '4px',
-            fontWeight: 'bold',
-            transition: 'background 0.2s ease'
-          }}
-        >
-          View on GitHub →
-        </a>
+          <dl className="rd-stats">
+            {stats.map(([label, value]) => (
+              <div key={label} className="rd-stat">
+                <dt className="sig-micro">{label.toUpperCase()}</dt>
+                <dd className="sig-data rd-stat-value">
+                  {typeof value === 'number' ? value.toLocaleString() : '—'}
+                </dd>
+              </div>
+            ))}
+            <div className="rd-stat">
+              <dt className="sig-micro">LANGUAGE</dt>
+              <dd className="sig-data rd-stat-value">{repo.language || '—'}</dd>
+            </div>
+            <div className="rd-stat">
+              <dt className="sig-micro">UPDATED</dt>
+              <dd className="sig-data rd-stat-value">
+                {formatDate(repo.updated_at)}
+              </dd>
+            </div>
+          </dl>
 
-        <button
-          onClick={onClose}
-          aria-label="Close repository details"
-          style={{
-            position: 'absolute',
-            top: '15px',
-            right: '15px',
-            background: 'none',
-            border: 'none',
-            color: '#888888',
-            fontSize: '28px',
-            cursor: 'pointer',
-            padding: '4px 8px',
-            borderRadius: '4px',
-            transition: 'background 0.2s ease'
-          }}
-        >
-          ✕
-        </button>
+          {hasReadme && (
+            <div className="rd-readme">
+              <p className="sig-micro">README &mdash; FIRST 500 CHARS</p>
+              <pre className="rd-readme-body">{repo.readme}</pre>
+            </div>
+          )}
+        </div>
+
+        <div className="rd-foot">
+          <a
+            className="rd-link"
+            href={repo.html_url}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            open on github &rarr;
+          </a>
+        </div>
       </div>
     </div>
   )

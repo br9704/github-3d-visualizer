@@ -1,44 +1,55 @@
 import { useState } from 'react'
 import '../styles/LanguageFilter.css'
 
+/**
+ * LanguageFilter — a directory listing, not a dropdown pill.
+ * The emoji control is replaced by a bracketed label and a caret glyph.
+ */
 export default function LanguageFilter({ languages, onLanguageChange }) {
   const [isOpen, setIsOpen] = useState(false)
-  const [selectedLanguage, setSelectedLanguage] = useState('All')
+  const [selected, setSelected] = useState('all')
 
-  const handleSelect = (language) => {
-    setSelectedLanguage(language)
-    onLanguageChange(language === 'All' ? null : language)
+  const choose = (language) => {
+    setSelected(language)
+    onLanguageChange(language === 'all' ? null : language)
     setIsOpen(false)
   }
 
+  const options = ['all', ...languages]
+
   return (
-    <div className="language-filter">
+    <div className="langf">
       <button
-        className="filter-button"
-        onClick={() => setIsOpen(!isOpen)}
+        className="sig-btn langf-toggle"
+        data-active={selected !== 'all'}
+        onClick={() => setIsOpen((v) => !v)}
+        aria-expanded={isOpen}
+        aria-label={`Language filter: ${selected}`}
       >
-        🗣️ {selectedLanguage}
-        <span className={`arrow ${isOpen ? 'open' : ''}`}>▼</span>
+        <span className="langf-toggle-label">lang</span>
+        <span className="langf-toggle-value">{selected}</span>
+        <span aria-hidden="true">{isOpen ? '▾' : '▸'}</span>
       </button>
 
       {isOpen && (
-        <div className="filter-dropdown">
-          <div
-            className={`filter-option ${selectedLanguage === 'All' ? 'active' : ''}`}
-            onClick={() => handleSelect('All')}
-          >
-            All Languages
-          </div>
-          {languages.map((lang) => (
-            <div
-              key={lang}
-              className={`filter-option ${selectedLanguage === lang ? 'active' : ''}`}
-              onClick={() => handleSelect(lang)}
-            >
-              {lang}
-            </div>
+        <ul className="langf-list sig-panel" role="listbox">
+          {options.map((lang) => (
+            <li key={lang}>
+              <button
+                className="langf-item"
+                role="option"
+                aria-selected={selected === lang}
+                data-active={selected === lang}
+                onClick={() => choose(lang)}
+              >
+                <span className="langf-item-mark" aria-hidden="true">
+                  {selected === lang ? '›' : ' '}
+                </span>
+                {lang}
+              </button>
+            </li>
           ))}
-        </div>
+        </ul>
       )}
     </div>
   )

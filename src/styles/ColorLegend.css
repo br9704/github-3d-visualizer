@@ -1,0 +1,49 @@
+/* ColorLegend — the language key. Swatches are data, everything else is grey. */
+
+.legend {
+  position: fixed;
+  top: 96px;
+  right: var(--s4);
+  z-index: var(--z-panel);
+  max-width: 168px;
+  max-height: 40vh;
+  overflow-y: auto;
+  padding: var(--s2) var(--s3);
+  background: rgba(5, 5, 5, 0.72);
+  backdrop-filter: blur(6px);
+  border: var(--hair) solid var(--hairline);
+  border-radius: var(--radius);
+}
+
+.legend-title {
+  margin-bottom: var(--s2);
+}
+
+.legend-row {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  font-family: var(--font-mono);
+  font-size: var(--fs-label);
+  line-height: 1.7;
+  color: var(--text-secondary);
+}
+
+.legend-swatch {
+  width: 8px;
+  height: 8px;
+  flex: none;
+  border-radius: 0;
+}
+
+.legend-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 900px) {
+  .legend {
+    display: none;
+  }
+}

@@ -1,89 +1,66 @@
-.language-filter {
+/* LanguageFilter — directory listing with keyboard-legible rows. */
+
+.langf {
   position: fixed;
-  top: 100px;
-  right: 20px;
-  z-index: 100;
+  top: 56px;
+  right: var(--s4);
+  z-index: var(--z-panel);
 }
 
-.filter-button {
-  background: rgba(0, 0, 0, 0.9);
-  border: 1px solid #888888;
-  color: #fff;
-  padding: 12px 16px;
-  border-radius: 8px;
-  cursor: pointer;
-  font-size: 14px;
+.langf-toggle {
+  gap: var(--s2);
+}
+
+.langf-toggle-label {
+  color: var(--text-dim);
+}
+
+.langf-toggle-value {
+  color: inherit;
+}
+
+.langf-list {
+  position: absolute;
+  top: calc(100% + var(--s1));
+  right: 0;
+  min-width: 160px;
+  max-height: 260px;
+  overflow-y: auto;
+  background: rgba(11, 10, 9, 0.96);
+  backdrop-filter: blur(6px);
+}
+
+.langf-item {
   display: flex;
   align-items: center;
-  gap: 8px;
-  transition: all 0.2s ease;
+  gap: var(--s2);
+  width: 100%;
+  padding: var(--s1) var(--s3);
+  font-family: var(--font-mono);
+  font-size: var(--fs-label);
+  color: var(--text-secondary);
+  text-align: left;
+  transition: color var(--t-instant) var(--ease),
+    background-color var(--t-instant) var(--ease);
 }
 
-.filter-button:hover {
-  background: rgba(128, 128, 128, 0.1);
-  border-color: #a78bfa;
+.langf-item:hover {
+  color: var(--text-primary);
+  background: rgba(255, 176, 0, 0.05);
 }
 
-.filter-button .arrow {
-  display: inline-block;
-  transition: transform 0.2s ease;
-  font-size: 12px;
+.langf-item[data-active='true'] {
+  color: var(--amber);
 }
 
-.filter-button .arrow.open {
-  transform: rotate(180deg);
-}
-
-.filter-dropdown {
-  position: absolute;
-  top: calc(100% + 8px);
-  right: 0;
-  background: rgba(0, 0, 0, 0.95);
-  border: 1px solid #888888;
-  border-radius: 8px;
-  min-width: 200px;
-  max-height: 300px;
-  overflow-y: auto;
-  box-shadow: 0 8px 24px rgba(128, 128, 128, 0.2);
-  z-index: 101;
-}
-
-.filter-option {
-  padding: 12px 16px;
-  color: #fff;
-  cursor: pointer;
-  transition: all 0.15s ease;
-  border-bottom: 1px solid rgba(128, 128, 128, 0.1);
-}
-
-.filter-option:last-child {
-  border-bottom: none;
-}
-
-.filter-option:hover {
-  background: rgba(128, 128, 128, 0.15);
-}
-
-.filter-option.active {
-  background: rgba(128, 128, 128, 0.3);
-  color: #a78bfa;
-  font-weight: bold;
-}
-
-/* Scrollbar styling */
-.filter-dropdown::-webkit-scrollbar {
+.langf-item-mark {
   width: 8px;
+  flex: none;
+  color: var(--amber);
 }
 
-.filter-dropdown::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.filter-dropdown::-webkit-scrollbar-thumb {
-  background: rgba(128, 128, 128, 0.3);
-  border-radius: 4px;
-}
-
-.filter-dropdown::-webkit-scrollbar-thumb:hover {
-  background: rgba(128, 128, 128, 0.5);
+@media (max-width: 480px) {
+  .langf {
+    right: var(--s3);
+  }
 }

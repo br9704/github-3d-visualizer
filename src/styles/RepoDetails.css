@@ -1,0 +1,148 @@
+/* RepoDetails — the repository readout dialog. */
+
+.rd-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-modal);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--s4);
+  background: rgba(5, 5, 5, 0.86);
+  backdrop-filter: blur(4px);
+}
+
+.rd-dialog {
+  display: flex;
+  flex-direction: column;
+  width: min(560px, 100%);
+  max-height: 82vh;
+  background: var(--surface);
+  border: var(--hair) solid var(--steel);
+  border-radius: var(--radius);
+  outline: none;
+}
+
+.rd-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s3);
+  padding: var(--s3) var(--s4);
+  border-bottom: var(--hair) solid var(--hairline);
+}
+
+.rd-title {
+  font-family: var(--font-mono);
+  font-size: var(--fs-lead);
+  font-weight: 400;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rd-close {
+  flex: none;
+  padding: var(--s1) var(--s2);
+  font-family: var(--font-mono);
+  font-size: var(--fs-body);
+  color: var(--text-dim);
+  transition: color var(--t-fast) var(--ease);
+}
+
+.rd-close:hover {
+  color: var(--text-primary);
+}
+
+.rd-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: var(--s4);
+}
+
+.rd-desc {
+  font-size: var(--fs-body);
+  line-height: 1.6;
+  color: var(--text-secondary);
+}
+
+/* ── Stats grid ───────────────────────────────────────────────────────── */
+
+.rd-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--s3);
+  margin-top: var(--s5);
+  padding-top: var(--s4);
+  border-top: var(--hair) solid var(--hairline);
+}
+
+.rd-stat dt {
+  margin-bottom: 2px;
+}
+
+.rd-stat-value {
+  font-size: var(--fs-body);
+  color: var(--text-primary);
+}
+
+/* ── README preview ───────────────────────────────────────────────────── */
+
+.rd-readme {
+  margin-top: var(--s5);
+  padding-top: var(--s4);
+  border-top: var(--hair) solid var(--hairline);
+}
+
+.rd-readme-body {
+  max-height: 200px;
+  margin-top: var(--s2);
+  overflow: auto;
+  padding: var(--s3);
+  background: var(--bg);
+  border: var(--hair) solid var(--hairline);
+  border-radius: var(--radius);
+  font-family: var(--font-mono);
+  font-size: var(--fs-micro);
+  line-height: 1.6;
+  color: var(--text-dim);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* ── Footer ───────────────────────────────────────────────────────────── */
+
+.rd-foot {
+  padding: var(--s3) var(--s4);
+  border-top: var(--hair) solid var(--hairline);
+}
+
+.rd-link {
+  display: inline-flex;
+  align-items: center;
+  padding: var(--s2) var(--s3);
+  border: var(--hair) solid var(--amber-dim);
+  border-radius: var(--radius);
+  color: var(--amber);
+  font-family: var(--font-mono);
+  font-size: var(--fs-label);
+  letter-spacing: 0.08em;
+  transition: color var(--t-fast) var(--ease),
+    border-color var(--t-fast) var(--ease),
+    background-color var(--t-fast) var(--ease);
+}
+
+.rd-link:hover {
+  color: var(--amber-bright);
+  border-color: var(--amber);
+  background: rgba(255, 176, 0, 0.06);
+  text-decoration: none;
+}
+
+@media (max-width: 480px) {
+  .rd-stats {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}

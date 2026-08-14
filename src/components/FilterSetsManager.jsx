@@ -179,12 +179,12 @@ export default function FilterSetsManager({ currentFilters, onLoadSet }) {
         className="filter-sets-header"
         onClick={() => setExpanded(!expanded)}
       >
-        <div className="filter-sets-title">
-          <span className="icon">💾</span>
-          <span>Filter Sets</span>
+        <div className="filter-sets-title filter-sets-header-title">
+          <span className="icon">·</span>
+          <span>filter sets</span>
           <span className="badge">{userSets.length}</span>
         </div>
-        <span className="toggle">{expanded ? '▼' : '▶'}</span>
+        <span className="toggle">{expanded ? '▾' : '▸'}</span>
       </div>
 
       {expanded && (
@@ -202,13 +202,13 @@ export default function FilterSetsManager({ currentFilters, onLoadSet }) {
               className="btn btn-primary"
               onClick={() => setShowSaveDialog(true)}
             >
-              💾 Save Current Filters
+              save current filters →
             </button>
             <button 
               className="btn btn-secondary"
               onClick={() => setShowImportDialog(true)}
             >
-              📥 Import Set
+              import set →
             </button>
           </div>
 
@@ -308,7 +308,7 @@ export default function FilterSetsManager({ currentFilters, onLoadSet }) {
                         onClick={() => handleExportSet(set.id)}
                         title="Export"
                       >
-                        📤
+                        ↑
                       </button>
                     </div>
                   </div>
@@ -377,21 +377,21 @@ export default function FilterSetsManager({ currentFilters, onLoadSet }) {
                             }}
                             title="Rename"
                           >
-                            ✎
+                            edit
                           </button>
                           <button 
                             className="btn-icon"
                             onClick={() => handleExportSet(set.id)}
                             title="Export"
                           >
-                            📤
+                            ↑
                           </button>
                           <button 
                             className="btn-icon btn-danger"
                             onClick={() => handleDeleteSet(set.id)}
                             title="Delete"
                           >
-                            🗑️
+                            ✕
                           </button>
                         </>
                       )}

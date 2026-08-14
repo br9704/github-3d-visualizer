@@ -1,3 +1,5 @@
+/* Autocomplete — a directory listing under the field. Square avatars. */
+
 .autocomplete-container {
   position: relative;
   width: 100%;
@@ -5,68 +7,56 @@
 
 .autocomplete-dropdown {
   position: absolute;
-  top: calc(100% + 8px);
+  top: calc(100% + var(--s1));
   left: 0;
   right: 0;
-  background: rgba(20, 20, 20, 0.98);
-  border: 1px solid #888888;
-  border-radius: 8px;
-  max-height: 300px;
+  z-index: var(--z-drawer);
+  max-height: 280px;
   overflow-y: auto;
-  box-shadow: 0 8px 24px rgba(128, 128, 128, 0.3);
-  z-index: 1000;
+  background: rgba(11, 10, 9, 0.97);
+  backdrop-filter: blur(6px);
+  border: var(--hair) solid var(--steel);
+  border-radius: var(--radius);
 }
 
 .autocomplete-option {
-  padding: 12px 16px;
   display: flex;
   align-items: center;
-  gap: 12px;
-  cursor: pointer;
-  transition: all 0.15s ease;
-  border-bottom: 1px solid rgba(128, 128, 128, 0.1);
-  color: #fff;
+  gap: var(--s2);
+  width: 100%;
+  padding: var(--s2) var(--s3);
+  border-bottom: var(--hair) solid var(--hairline);
+  font-family: var(--font-mono);
+  font-size: var(--fs-label);
+  color: var(--text-secondary);
+  text-align: left;
+  transition: color var(--t-instant) var(--ease),
+    background-color var(--t-instant) var(--ease);
 }
 
 .autocomplete-option:last-child {
   border-bottom: none;
 }
 
-.autocomplete-option:hover {
-  background: rgba(128, 128, 128, 0.15);
-  padding-left: 20px;
+.autocomplete-option:hover,
+.autocomplete-option[data-active='true'] {
+  color: var(--text-primary);
+  background: rgba(255, 176, 0, 0.05);
 }
 
 .autocomplete-option .avatar {
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  border: 1px solid #888888;
+  width: 18px;
+  height: 18px;
+  flex: none;
+  border-radius: 0;
+  border: var(--hair) solid var(--hairline);
   object-fit: cover;
+  filter: grayscale(1) contrast(1.05);
 }
 
 .autocomplete-option .username {
-  font-weight: 500;
   flex: 1;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-/* Scrollbar styling */
-.autocomplete-dropdown::-webkit-scrollbar {
-  width: 8px;
-}
-
-.autocomplete-dropdown::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.autocomplete-dropdown::-webkit-scrollbar-thumb {
-  background: rgba(128, 128, 128, 0.3);
-  border-radius: 4px;
-}
-
-.autocomplete-dropdown::-webkit-scrollbar-thumb:hover {
-  background: rgba(128, 128, 128, 0.5);
 }

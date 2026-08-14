@@ -96,7 +96,7 @@ export default function CollaborationPanel({
     }
     const result = await collaborationService.copyShareUrl(currentState)
     if (result.success) {
-      showMessage('🔗 Link copied to clipboard!')
+      showMessage('link copied')
     } else {
       // Clipboard may be blocked — show the URL instead
       showMessage(`Copy this URL: ${result.url}`, 'info')
@@ -149,7 +149,7 @@ export default function CollaborationPanel({
       a.download = `github3dviz-collab-${Date.now()}.json`
       a.click()
       URL.revokeObjectURL(url)
-      showMessage('📦 Local share data exported')
+      showMessage('local share data exported')
     } catch {
       showMessage('Export failed', 'error')
     }
@@ -180,7 +180,7 @@ export default function CollaborationPanel({
     if (result.success) {
       setCommentText('')
       refreshComments()
-      showMessage('💬 Comment added!')
+      showMessage('note added')
     } else {
       showMessage(result.message, 'error')
     }
@@ -238,7 +238,7 @@ export default function CollaborationPanel({
           onClick={handleCopyUrl}
           disabled={!username}
         >
-          📋 Copy
+          copy
         </button>
       </div>
 
@@ -273,14 +273,14 @@ export default function CollaborationPanel({
             onClick={handleSaveSnapshot}
             style={{ flex: 1 }}
           >
-            📸 Save Snapshot
+            save snapshot →
           </button>
           {snapshots.length > 0 && (
             <button
               className="collab-btn collab-btn-secondary"
               onClick={handleExportSnapshots}
             >
-              📤 Export All
+              export all →
             </button>
           )}
         </div>
@@ -289,7 +289,7 @@ export default function CollaborationPanel({
       {/* Snapshot list */}
       {snapshots.length === 0 ? (
         <div className="collab-empty">
-          <span className="empty-icon">📸</span>
+          <span className="empty-icon">·</span>
           No snapshots saved yet. Save the current view to recall it later.
         </div>
       ) : (
@@ -315,22 +315,22 @@ export default function CollaborationPanel({
                   className="collab-btn collab-btn-primary"
                   onClick={() => handleLoadSnapshot(snap)}
                 >
-                  ▶ Load
+                  ▸ Load
                 </button>
                 <button
                   className="collab-btn collab-btn-secondary"
                   onClick={async () => {
                     await navigator.clipboard.writeText(snap.shareUrl).catch(() => {})
-                    showMessage('🔗 Snapshot link copied!')
+                    showMessage('snapshot link copied')
                   }}
                 >
-                  🔗 Copy Link
+                  copy link
                 </button>
                 <button
                   className="collab-btn collab-btn-danger"
                   onClick={() => handleDeleteSnapshot(snap.id)}
                 >
-                  🗑
+                  ✕
                 </button>
               </div>
             </div>
@@ -346,7 +346,7 @@ export default function CollaborationPanel({
     <div className="comments-section">
       {!selectedRepo ? (
         <div className="no-repo-selected">
-          <div style={{ fontSize: 28, marginBottom: 8 }}>💬</div>
+          <div style={{ fontSize: 28, marginBottom: 8 }}>·</div>
           Click a repository sphere to select it, then add comments here.
         </div>
       ) : (
@@ -366,7 +366,7 @@ export default function CollaborationPanel({
               className="collab-btn collab-btn-primary"
               onClick={handleAddComment}
             >
-              💬 Add Comment
+              add note →
             </button>
           </div>
 
@@ -383,7 +383,7 @@ export default function CollaborationPanel({
                     <span className="comment-author">
                       {comment.author}
                       {comment.isPinned && (
-                        <span className="pinned-badge">📌 pinned</span>
+                        <span className="pinned-badge">pinned</span>
                       )}
                     </span>
                     <span className="comment-date">{formatDate(comment.createdAt)}</span>
@@ -395,14 +395,14 @@ export default function CollaborationPanel({
                       onClick={() => handlePinComment(comment.id)}
                       title={comment.isPinned ? 'Unpin' : 'Pin'}
                     >
-                      {comment.isPinned ? '📌' : '📍'}
+                      {comment.isPinned ? 'unpin' : 'pin'}
                     </button>
                     <button
                       className="collab-btn-icon"
                       onClick={() => handleDeleteComment(comment.id)}
                       title="Delete comment"
                     >
-                      🗑
+                      ✕
                     </button>
                   </div>
                 </div>
@@ -423,8 +423,8 @@ export default function CollaborationPanel({
       {/* Collapsible header */}
       <div className="collab-header" onClick={() => setExpanded(prev => !prev)}>
         <div className="collab-header-left">
-          <span style={{ fontSize: 16 }}>🤝</span>
-          <span className="collab-header-title">Share &amp; Annotate (local)</span>
+          <span style={{ fontSize: 16 }}></span>
+          <span className="collab-header-title">share &amp; annotate (local)</span>
           <div className="collab-header-badges">
             {snapshots.length > 0 && (
               <span className="collab-badge">{snapshots.length} snapshots</span>
@@ -434,7 +434,7 @@ export default function CollaborationPanel({
             )}
           </div>
         </div>
-        <span className="collab-toggle">{expanded ? '▼' : '▶'}</span>
+        <span className="collab-toggle">{expanded ? '▾' : '▸'}</span>
       </div>
 
       {expanded && (
@@ -442,9 +442,9 @@ export default function CollaborationPanel({
           {/* Tab bar */}
           <div className="collab-tabs">
             {[
-              { id: 'share', label: '🔗 Share' },
-              { id: 'snapshots', label: '📸 Snapshots' },
-              { id: 'comments', label: '💬 Notes' }
+              { id: 'share', label: 'share' },
+              { id: 'snapshots', label: 'snapshots' },
+              { id: 'comments', label: 'notes' }
             ].map(tab => (
               <button
                 key={tab.id}

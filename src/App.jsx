@@ -26,11 +26,11 @@ import DataExportPanel from './components/DataExportPanel'
 import AdvancedHeatmaps from './components/AdvancedHeatmaps'
 import UserPreferencesPanel from './components/UserPreferencesPanel'
 import CollaborationPanel from './components/CollaborationPanel'
-import { ThemeProvider } from './contexts/ThemeContext'
 import { userPreferences } from './services/userPreferences'
 import { collaborationService } from './services/collaborationService'
 import { fetchUserRepos, fetchRepoReadmeBatch } from './utils/githubApi'
 import { calculatePositions } from './utils/positioning'
+import './styles/signal.css'
 import './App.css'
 
 const REPOS_PER_PAGE = 100
@@ -54,6 +54,10 @@ function App() {
   const [currentPage, setCurrentPage]             = useState(1)
   const [totalRepos, setTotalRepos]               = useState(0)
   const [showHelpModal, setShowHelpModal]         = useState(false)
+
+  /** Measured, never estimated — feeds the HUD readout and the honesty rules. */
+  const [starCount, setStarCount] = useState(null)
+  const [renderMs, setRenderMs]   = useState(null)
 
   /** Store user data for pagination */
   const userDataRef = useRef({})
@@ -110,9 +114,12 @@ function App() {
    * @param {string} searchUsername - GitHub username to search
    */
   const handleSearch = useCallback(async (searchUsername) => {
+    const startedAt = performance.now()
     setLoading(true)
-    setLoadingPhase('Fetching repos...')
+    setLoadingPhase(`fetching @${searchUsername}`)
     setError('')
+    setStarCount(null)
+    setRenderMs(null)
     setUsername(searchUsername)
     setRepos([])
     setPositionedRepos([])
@@ -127,7 +134,7 @@ function App() {
       )
 
       if (fetchedRepos.length === 0) {
-        setError('No public repositories found')
+        setError('no public repositories')
         return
       }
 
@@ -149,7 +156,7 @@ function App() {
       filtered = filtered.slice(0, maxRepos)
 
       // Fetch READMEs for first 20 repos
-      setLoadingPhase('Loading READMEs...')
+      setLoadingPhase(`reading ${Math.min(filtered.length, 20)} readmes`)
       const reposWithReadme = await fetchRepoReadmeBatch(
         searchUsername,
         filtered.slice(0, 20)
@@ -160,7 +167,7 @@ function App() {
         ...filtered.slice(20).map((r) => ({ ...r, readme: null }))
       ]
 
-      setLoadingPhase('Building scene...')
+      setLoadingPhase('building scene')
       const positioned = calculatePositions(allRepos)
 
       // Extract unique languages
@@ -177,8 +184,12 @@ function App() {
       setPositionedRepos(positioned)
       setDetectedLanguages(languages)
       setTotalRepos(user.public_repos || fetchedRepos.length)
+      setStarCount(
+        allRepos.reduce((sum, r) => sum + (r.stargazers_count || 0), 0)
+      )
+      setRenderMs(performance.now() - startedAt)
     } catch (err) {
-      setError(err.message || 'Failed to fetch repositories')
+      setError(err.message || 'failed to fetch repositories')
       setRepos([])
       setPositionedRepos([])
     } finally {
@@ -281,69 +292,75 @@ function App() {
 
   // ─── Render ───────────────────────────────────────────────────────────────
 
-  return (
-    <ThemeProvider>
-      <div className="app">
-        <a href="#main-content" className="skip-link">
-          Skip to main content
-        </a>
-        <Header />
+  const hasScene = repos.length > 0
 
-        {/* Keyboard help modal */}
+  return (
+    <div className="app">
+      <a href="#main-content" className="skip-link">
+        skip to main content
+      </a>
+
+      {/* ── Scene layer (z-index 0) ────────────────────────────────────────
+          The canvas MUST stay below the HUD. It previously mounted as
+          position:fixed with no z-index and painted over the header, which
+          is what made this app render as a blank page. */}
+      <div id="main-content">
+        <Visualizer
+          repos={displayedRepos}
+          onRepoClick={handleRepoClick}
+          detectedLanguages={detectedLanguages}
+        />
+      </div>
+
+      {/* ── HUD layer (z-index 10+) ─────────────────────────────────────── */}
+      <div className="hud">
+        <Header
+          status={loading ? 'busy' : hasScene ? 'live' : 'idle'}
+          repoCount={repos.length}
+          onHelp={() => setShowHelpModal(true)}
+        />
+
         <KeyboardHelpModal
           isOpen={showHelpModal}
           onClose={() => setShowHelpModal(false)}
         />
 
-        {/* Accessibility: Live region for announcements */}
+        {/* Screen-reader announcements */}
         <div aria-live="polite" aria-atomic="true" className="sr-only">
           {loading && loadingPhase}
-          {!loading && repos.length > 0 && `Loaded ${repos.length} repositories for ${username}`}
+          {!loading && hasScene && `Loaded ${repos.length} repositories for ${username}`}
         </div>
 
-        {/* 3D Visualizer */}
-        <div id="main-content">
-          <Visualizer
-            repos={displayedRepos}
-            onRepoClick={handleRepoClick}
-            detectedLanguages={detectedLanguages}
-          />
-        </div>
+        <SearchBar
+          onSearch={handleSearch}
+          loading={loading}
+          loadingPhase={loadingPhase}
+          error={error}
+        />
 
-        {/* Search Bar */}
-        <SearchBar onSearch={handleSearch} loading={loading} loadingPhase={loadingPhase} error={error} />
-
-        {/* Stats */}
         <StatsDisplay
           loading={loading}
           error={error}
           repoCount={repos.length}
           username={username}
+          starCount={starCount}
+          renderMs={renderMs}
         />
 
-        {/* v4 Feature 4: User Preferences Panel */}
-        <UserPreferencesPanel
-          onPreferencesChange={handlePreferencesChange}
-        />
+        <UserPreferencesPanel onPreferencesChange={handlePreferencesChange} />
 
-        {repos.length > 0 && (
+        {hasScene && (
           <>
-            {/* v4 Feature 1: Custom Filter Sets */}
             <FilterSetsManager
               currentFilters={{ languages: filteredLanguage ? [filteredLanguage] : [] }}
               onLoadSet={handleLoadFilterSet}
             />
 
-            {/* v4 Feature 2: Data Export Formats */}
-            <DataExportPanel
-              repos={repos}
-              username={username}
-            />
+            <DataExportPanel repos={repos} username={username} />
 
-            {/* v4 Feature 3: Advanced Heatmaps */}
             <AdvancedHeatmaps repos={repos} />
 
-            {/* v4 Feature 5: Collaboration */}
+            {/* Share & Annotate (local) — localStorage + URL params, no server */}
             <CollaborationPanel
               username={username}
               currentLanguage={filteredLanguage}
@@ -353,34 +370,14 @@ function App() {
               onLoadSnapshot={handleLoadSnapshot}
             />
 
-            {/* Color Legend */}
             <ColorLegend languages={detectedLanguages} />
-          </>
-        )}
 
-        {/* Language Filter */}
-        {username && detectedLanguages.length > 0 && (
-          <LanguageFilter
-            languages={detectedLanguages}
-            onLanguageChange={handleLanguageFilter}
-          />
-        )}
-
-        {/* Repo Details Drawer */}
-        {selectedRepo && (
-          <RepoDetails repo={selectedRepo} onClose={() => setSelectedRepo(null)} />
-        )}
-
-        {repos.length > 0 && (
-          <>
-            {/* Export/Share (v3 panel) */}
             <ExportShare
               repos={positionedRepos}
               username={username}
               filters={{ language: filteredLanguage }}
             />
 
-            {/* Pagination */}
             {totalRepos > REPOS_PER_PAGE && (
               <Pagination
                 currentPage={currentPage}
@@ -393,8 +390,19 @@ function App() {
             )}
           </>
         )}
+
+        {username && detectedLanguages.length > 0 && (
+          <LanguageFilter
+            languages={detectedLanguages}
+            onLanguageChange={handleLanguageFilter}
+          />
+        )}
+
+        {selectedRepo && (
+          <RepoDetails repo={selectedRepo} onClose={() => setSelectedRepo(null)} />
+        )}
       </div>
-    </ThemeProvider>
+    </div>
   )
 }
 

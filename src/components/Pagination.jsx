@@ -1,5 +1,9 @@
 import '../styles/Pagination.css'
 
+/**
+ * Pagination — a readout with one action. The emoji controls are replaced
+ * by a terminal fill bar and a bracket button.
+ */
 export default function Pagination({
   currentPage,
   totalRepos,
@@ -10,31 +14,33 @@ export default function Pagination({
 }) {
   const totalPages = Math.ceil(totalRepos / reposPerPage)
   const maxPages = Math.ceil(maxRepos / reposPerPage)
-  const canLoadMore = currentPage < totalPages && currentPage < maxPages && totalRepos > reposPerPage
+  const canLoadMore =
+    currentPage < totalPages && currentPage < maxPages && totalRepos > reposPerPage
 
-  const nextPage = currentPage + 1
-  const itemsShown = currentPage * reposPerPage
+  const shown = currentPage * reposPerPage
 
   return (
-    <div className="pagination-container">
-      <div className="pagination-info">
-        Showing {itemsShown} of {Math.min(totalRepos, maxRepos)} repos
-      </div>
+    <div className="pager">
+      <span className="pager-info sig-data">
+        <span className="sig-key">{Math.min(shown, totalRepos)}</span>
+        {' / '}
+        {Math.min(totalRepos, maxRepos)}
+      </span>
 
       {canLoadMore && (
-        <button
-          className="load-more-button"
-          onClick={onLoadMore}
-          disabled={isLoading}
-        >
-          {isLoading ? '⏳ Loading...' : '📥 Load More Repos'}
+        <button className="sig-btn" onClick={onLoadMore} disabled={isLoading}>
+          {isLoading ? (
+            <span className="sig-bar">
+              [██<span className="sig-bar-empty">░░░░░░</span>]
+            </span>
+          ) : (
+            'load more →'
+          )}
         </button>
       )}
 
       {totalRepos > maxRepos && (
-        <div className="pagination-notice">
-          Capped at {maxRepos} repos to maintain performance
-        </div>
+        <span className="pager-note sig-micro">CAPPED AT {maxRepos}</span>
       )}
     </div>
   )

@@ -52,10 +52,10 @@ export default function ExportShare({ repos, username, filters }) {
     <>
       <div className="export-share-buttons">
         <button className="export-button" onClick={handleExport} title="Export repos as JSON">
-          📥 Export
+          export
         </button>
         <button className="share-button" onClick={handleShare} title="Generate shareable URL">
-          🔗 Share
+          share
         </button>
       </div>
 

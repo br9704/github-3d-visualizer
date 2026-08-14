@@ -1,39 +1,37 @@
-/* Pagination — bottom-centre readout with one action. */
+/* StatsDisplay — corner readout, top-left under the instrument bar. */
 
-.pager {
+.stats {
   position: fixed;
-  bottom: var(--s4);
-  left: 50%;
-  transform: translateX(-50%);
+  top: 56px;
+  left: var(--s4);
   z-index: var(--z-panel);
   display: flex;
-  align-items: center;
-  gap: var(--s3);
+  flex-direction: column;
+  gap: var(--s1);
+  min-width: 180px;
   padding: var(--s2) var(--s3);
   background: rgba(5, 5, 5, 0.72);
   backdrop-filter: blur(6px);
   border: var(--hair) solid var(--hairline);
   border-radius: var(--radius);
+  font-size: var(--fs-label);
 }
 
-.pager-info {
+.stats-user {
+  font-size: var(--fs-label);
+  letter-spacing: var(--tracking-label);
+  color: var(--text-secondary);
+}
+
+.stats-line {
   font-size: var(--fs-label);
   color: var(--text-secondary);
 }
 
-.pager-note {
-  color: var(--text-dim);
-}
-
 @media (max-width: 480px) {
-  .pager {
+  .stats {
     left: var(--s3);
     right: var(--s3);
-    transform: none;
-    justify-content: space-between;
-  }
-
-  .pager-note {
-    display: none;
+    min-width: 0;
   }
 }

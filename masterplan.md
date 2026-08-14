@@ -5,7 +5,7 @@
 Status keys, marked live as work happens — never batched:
 `[ ]` not started · `[~]` in progress · `[x]` complete · `[⏭]` deferred (always with a one-line reason)
 
-**Current sprint pointer:** S0
+**Current sprint pointer:** S1
 
 ---
 
@@ -42,21 +42,30 @@ Run at **every** sprint close, not only at the end. No sprint closes on a green 
 
 ---
 
-## S0 — Honesty pass `[~]`
+## S0 — Honesty pass `[x]`
 
 Fast, and it stops the repo actively hurting a reader.
 
-- [ ] Delete 38 process markdown files (`TEST_REPORT_*`, `VERIFICATION_REPORT_*`, `SUBAGENT_COMPLETION_*`, `SPRINTS_*`, `AUDIT_*`, `REDESIGN_*`, `Improvements_*`, `README_v3`, `MASTER_PLAN.md`, `TASK.md`, `TESTING.md`, `DEBUGGING.md`, …). Keep `README.md`, `CHANGELOG.md`, and the four planning docs.
-- [ ] Add `LICENSE` — MIT, Bruno Jaamaa, 2026. Claimed at `README.md:304` today with no file behind it.
-- [ ] Rewrite `README.md`: remove the `via.placeholder.com` hero (`:5`); delete the fabricated perf table (`:214-215`, "100 repos | 60 FPS"); delete "60 FPS at 100+ repositories" (`:60`); `[PLACEHOLDER — live URL]` / `[PLACEHOLDER — hero recording]` where those will land.
-- [ ] Rename **Collaboration → Share & Annotate (local)** in the README *and* in `CollaborationPanel.jsx` / `collaborationService.js` user-facing strings. The service's own header comment already says real-time collab would need a WebSocket backend.
-- [ ] `.gitignore` `.claude/settings.json`, `.codex/`, `AGENTS.md`, `GEMINI.md` — agent wiring with absolute `/Users/brunojaamaa/…` paths must not ship in a public repo.
-- [ ] Add `name` / `description` / `repository` / `license` to `package.json`.
+- [x] Delete **37** process markdown files (`TEST_REPORT_*`, `VERIFICATION_REPORT_*`, `SUBAGENT_COMPLETION_*`, `SPRINTS_*`, `AUDIT_*`, `REDESIGN_*`, `Improvements_*`, `README_v3`, `MASTER_PLAN.md`, `TASK.md`, `TESTING.md`, `DEBUGGING.md`, …). Keep `README.md`, `CHANGELOG.md`, and the four planning docs.
+- [x] Add `LICENSE` — MIT, Bruno Jaamaa, 2026. Claimed at `README.md:304` with no file behind it.
+- [x] Rewrite `README.md`: removed the `via.placeholder.com` hero; deleted the fabricated perf table ("100 repos | 60 FPS", "200 repos | 55–60 FPS"); deleted "60 FPS at 100+ repositories"; `[PLACEHOLDER — live URL]` / `[PLACEHOLDER — hero recording]` placed where those will land.
+- [x] Rename **Collaboration → Share & Annotate (local)** in the README *and* in `CollaborationPanel.jsx` / `collaborationService.js`. The service's own header comment already said real-time collab would need a WebSocket backend.
+- [x] `.gitignore` `.claude/settings.json`, `.mcp.json`, `.codex/`, `.cursor/`, `opencode.json`, `AGENTS.md`, `GEMINI.md` — agent wiring with absolute `/Users/brunojaamaa/…` paths must not ship in a public repo.
+- [x] Add `name` / `description` / `repository` / `license` / `author` / `homepage` to `package.json`.
 
-**Acceptance:** `rg` finds zero unbacked claims in `README.md`; build exit 0; screenshots identical to baseline (proves this sprint was docs-only).
+**Acceptance:** ✅ `rg` finds zero unbacked claims in `README.md`; build exit 0; screenshots **byte-identical** to baseline (`cmp` → IDENTICAL at both viewports), proving this sprint was docs-only.
 
-**As-shipped delta:** _pending_
-**Deferred:** _pending_
+**As-shipped delta:**
+- **37 files deleted, not 38.** The plan's count came from `ls *.md` at 40, which included `README.md` and `CHANGELOG.md` (both kept) and the repo's own `CLAUDE.md` (overwritten by the planning `CLAUDE.md`, so it is a modification rather than a deletion). Tracked markdown went 40 → 7.
+- Four further unbacked claims found and removed beyond the plan's list, all discovered by checking the code rather than the docs:
+  - "**Arrow Keys — Rotate camera**" — no arrow-key handler exists in `Visualizer.jsx`, and `OrbitControls.listenToKeyEvents()` is never called, so arrow keys do nothing.
+  - "**17+ language-specific colors**" — the map in `utils/colors.js` has exactly 17 entries. Now stated as 17.
+  - "**WCAG AA Modals**" (plural) — only `RepoDetails.jsx` has a focus trap and `aria-modal`. `KeyboardHelpModal.jsx` has neither. Now names the one dialog.
+  - "**Frustum Culling (+15-20 FPS)**" and "**Shadow maps disabled: saves ~16MB GPU memory**" — both invented figures. Techniques kept, numbers removed.
+- README now states plainly that there are no tests and no deployment, and records the measured build output (731.75 kB / 197.00 kB gzip) instead of estimates.
+- Commit `59a3995`.
+
+**Deferred:** nothing.
 
 ---
 

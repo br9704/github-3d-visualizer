@@ -1,132 +1,99 @@
-/* Theme CSS Variables */
-:root,
-[data-theme='dark'] {
-  --bg-primary: #1a1a1a;
-  --bg-secondary: #2d2d2d;
-  --bg-tertiary: #3d3d3d;
-  --text-primary: #ffffff;
-  --text-secondary: #b0b0b0;
-  --text-muted: #808080;
-  --border-color: rgba(255, 255, 255, 0.1);
-  --shadow-color: rgba(0, 0, 0, 0.3);
-  --header-bg: rgba(26, 26, 26, 0.8);
-  --button-bg: rgba(60, 60, 60, 0.6);
-  --button-hover-bg: rgba(60, 60, 60, 0.9);
-  --input-bg: rgba(45, 45, 45, 0.6);
-  --modal-bg: rgba(26, 26, 26, 0.95);
-  --accent-1: #888888;
-  --accent-2: #666666;
-  --text-color: #ffffff;
-}
-
-[data-theme='light'] {
-  --bg-primary: #f8f9fa;
-  --bg-secondary: #ffffff;
-  --bg-tertiary: #f0f0f0;
-  --text-primary: #374151;
-  --text-secondary: #6b7280; /* Pure grey — fixed from #4a4e65 blue-grey */
-  --text-muted: #9ca3af;
-  --border-color: rgba(0, 0, 0, 0.08);
-  --shadow-color: rgba(0, 0, 0, 0.08);
-  --header-bg: rgba(248, 249, 250, 0.8);
-  --button-bg: rgba(240, 240, 240, 0.6);
-  --button-hover-bg: rgba(240, 240, 240, 0.95);
-  --input-bg: rgba(255, 255, 255, 0.6);
-  --modal-bg: rgba(248, 249, 250, 0.95);
-  --accent-1: #444444;
-  --accent-2: #555555;
-  --text-color: #374151;
-}
-
-* {
-  transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease;
-}
-
-html {
-  background: var(--bg-primary);
-}
-
-body {
-  margin: 0;
-  padding: 0;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu,
-    Cantarell, 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  background: var(--bg-primary);
-  color: var(--text-primary);
-}
+/**
+ * App.css — application shell and layering.
+ *
+ * The layering here is the fix for the bug that made this app render as a
+ * blank white page: Visualizer mounts its canvas position:fixed at 100vw/100vh
+ * with no z-index, so it painted over the header. The scene now owns z-index 0
+ * and every piece of chrome sits in the .hud stacking context above it.
+ *
+ * Design system: src/styles/signal.css. There is no light theme.
+ */
 
 .app {
+  position: relative;
   width: 100%;
   height: 100%;
+  background: var(--bg);
   overflow: hidden;
-  background: linear-gradient(135deg, var(--bg-primary) 0%, var(--bg-secondary) 100%);
-  position: relative;
 }
 
-/* Subtle gradient animation on load */
-@keyframes gradientShift {
-  0%, 100% {
-    background-position: 0% 50%;
-  }
-  50% {
-    background-position: 100% 50%;
-  }
+/* ── Scene ────────────────────────────────────────────────────────────────
+   The WebGL canvas. Fixed, full-viewport, and explicitly at the bottom of
+   the stack so chrome is never covered again. */
+
+.scene {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-scene);
+  overflow: hidden;
+  outline: none;
 }
 
-.app::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: radial-gradient(circle at 20% 50%, rgba(255, 255, 255, 0.02) 0%, transparent 50%),
-              radial-gradient(circle at 80% 80%, rgba(128, 128, 128, 0.03) 0%, transparent 50%);
+.scene canvas {
+  display: block;
+}
+
+/* A 1px grid plane sits under the scene at low opacity — structure, not
+   decoration. MOTION.md fades this to 8% over the first 400ms. */
+.scene-grid {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-scene);
   pointer-events: none;
-  z-index: 1;
+  opacity: 0;
+  background-image: linear-gradient(
+      to right,
+      var(--hairline) var(--hair),
+      transparent var(--hair)
+    ),
+    linear-gradient(to bottom, var(--hairline) var(--hair), transparent var(--hair));
+  background-size: 64px 64px;
+  transition: opacity var(--t-slow) linear;
 }
 
-/* Accessibility: Skip Link */
-.skip-link {
-  position: absolute;
-  top: -40px;
-  left: 0;
-  background: var(--accent-1);
-  color: white;
-  padding: 8px 16px;
-  text-decoration: none;
-  z-index: 1000;
-  border-radius: 0 0 4px 0;
-  font-weight: bold;
+.scene-grid[data-visible='true'] {
+  opacity: 0.08;
 }
 
-.skip-link:focus {
-  top: 0;
+/* ── HUD ──────────────────────────────────────────────────────────────────
+   Every piece of chrome lives above the scene. Pointer events are opt-in so
+   the whole viewport stays orbitable. */
+
+.hud {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-hud);
+  pointer-events: none;
 }
 
-/* Accessibility: Visually hidden but screen-reader accessible */
-.sr-only {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  padding: 0;
-  margin: -1px;
-  overflow: hidden;
-  clip: rect(0, 0, 0, 0);
-  white-space: nowrap;
-  border-width: 0;
+.hud > * {
+  pointer-events: auto;
 }
 
-/* Modal entrance animation */
-@keyframes modalFadeIn {
-  from {
-    opacity: 0;
-    transform: scale(0.95) translateY(10px);
-  }
-  to {
-    opacity: 1;
-    transform: scale(1) translateY(0);
-  }
+/* Vignette: a broadcast-CRT edge, always on, never a gradient background —
+   this is the one radial mask the system allows as texture. */
+.app::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-hud);
+  pointer-events: none;
+  background: radial-gradient(
+    ellipse at center,
+    transparent 62%,
+    rgba(0, 0, 0, 0.28) 100%
+  );
+}
+
+/* WebGL failure state. Text, centred over the empty scene. */
+.scene-error {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, calc(-50% + 64px));
+  z-index: var(--z-panel);
+  padding: var(--s2) var(--s3);
+  border: var(--hair) solid var(--steel);
+  border-radius: var(--radius);
+  background: rgba(11, 10, 9, 0.94);
 }

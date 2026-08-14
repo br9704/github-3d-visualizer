@@ -1,0 +1,539 @@
+/**
+ * signal.css — the design system, inherited not invented.
+ *
+ * Source of truth: ~/bruno-portfolio/CLAUDE.md
+ *   → "Redesign Design Decisions (2026-07 · SIGNAL)"
+ *
+ * SIGNAL is a warm-black precision instrument: Ryoji Ikeda data-minimalism
+ * crossed with cassette-futurist hardware. It should operate like a beautiful
+ * old machine — readouts, directory listings, keyboard nav — while staying
+ * clean and fast.
+ *
+ * Non-negotiable rules enforced here:
+ *   - Amber is THE one accent, used sparingly: cursor, status dots, CTAs,
+ *     focus brackets, key data. Everything else is grayscale on hairline steel.
+ *   - No light theme. No gradients. No shadows. No colour beyond amber.
+ *     (Language colours are DATA, rendered in the 3D scene — not UI chrome.)
+ *   - border-radius max 2px. Effectively square.
+ *   - Monospace for data, labels, readouts, ASCII.
+ *   - Motion: ease-out or linear only. No bounce, no spring, nothing > 600ms.
+ *   - No emoji in UI. Monospace glyphs and bracket buttons instead.
+ *   - prefers-reduced-motion means static everything.
+ */
+
+@import '@fontsource-variable/dm-sans';
+@import '@fontsource-variable/jetbrains-mono';
+
+:root {
+  /* ── Colour (locked) ──────────────────────────────────────────────────── */
+  --bg: #050505;
+  --surface: #0b0a09;
+  --surface-raised: #100e0c;
+  --text-primary: #f0ece4;
+  --text-secondary: #98928a;
+  --text-dim: #55504a;
+  --amber: #ffb000;
+  --amber-bright: #ffc94d;
+  --amber-dim: #8f6300;
+  --steel: #2c2925;
+  --hairline: #1b1916;
+
+  /* Live/positive only. One colour, one meaning: alive. */
+  --live: #3fb950;
+
+  /* ── Type ─────────────────────────────────────────────────────────────── */
+  --font-body: 'DM Sans Variable', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-mono: 'JetBrains Mono Variable', ui-monospace, 'SF Mono', Menlo, monospace;
+
+  --fs-micro: 10px;
+  --fs-label: 11px;
+  --fs-body: 13px;
+  --fs-lead: 15px;
+  --fs-display: 20px;
+
+  --tracking-label: 0.14em;
+  --tracking-micro: 0.2em;
+
+  /* ── Space (4 → 32) ───────────────────────────────────────────────────── */
+  --s1: 4px;
+  --s2: 8px;
+  --s3: 12px;
+  --s4: 16px;
+  --s5: 24px;
+  --s6: 32px;
+
+  /* ── Geometry ─────────────────────────────────────────────────────────── */
+  --radius: 2px;
+  --hair: 1px;
+
+  /* ── Motion. ease-out or linear only, nothing over 600ms. ─────────────── */
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --t-instant: 120ms;
+  --t-fast: 200ms;
+  --t-base: 300ms;
+  --t-slow: 400ms;
+  --t-max: 600ms;
+
+  /* ── Layering ─────────────────────────────────────────────────────────── */
+  --z-scene: 0;
+  --z-hud: 10;
+  --z-panel: 20;
+  --z-drawer: 30;
+  --z-modal: 100;
+
+  color-scheme: dark;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+   Reset
+   ───────────────────────────────────────────────────────────────────────── */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+html {
+  background: var(--bg);
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text-primary);
+  font-family: var(--font-body);
+  font-size: var(--fs-body);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow: hidden;
+}
+
+h1,
+h2,
+h3,
+h4,
+p,
+ul,
+ol,
+figure {
+  margin: 0;
+  padding: 0;
+}
+
+ul,
+ol {
+  list-style: none;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: none;
+  border-radius: 0;
+}
+
+button {
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
+a {
+  color: var(--amber);
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+::selection {
+  background: var(--amber-dim);
+  color: var(--text-primary);
+}
+
+/* Focus is a bracket, not a glow. */
+:focus {
+  outline: none;
+}
+
+:focus-visible {
+  outline: var(--hair) solid var(--amber);
+  outline-offset: 2px;
+}
+
+/* Instrument scrollbars — hairline, no chrome. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--steel) transparent;
+}
+
+*::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+  background: var(--steel);
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: var(--text-dim);
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+   Primitives — the shared vocabulary every panel is built from.
+   ───────────────────────────────────────────────────────────────────────── */
+
+/* Section label: `</github universe>`, `</filters>` */
+.sig-label {
+  font-family: var(--font-mono);
+  font-size: var(--fs-label);
+  font-weight: 400;
+  letter-spacing: var(--tracking-label);
+  text-transform: lowercase;
+  color: var(--text-secondary);
+}
+
+/* Micro readout: corner instrument text */
+.sig-micro {
+  font-family: var(--font-mono);
+  font-size: var(--fs-micro);
+  letter-spacing: var(--tracking-micro);
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+
+/* Machine speech: `> fetching @torvalds` */
+.sig-say {
+  font-family: var(--font-mono);
+  font-size: var(--fs-body);
+  color: var(--text-secondary);
+}
+
+.sig-say::before {
+  content: '> ';
+  color: var(--amber);
+}
+
+.sig-say[data-tone='error'] {
+  color: var(--text-primary);
+}
+
+.sig-say[data-tone='error']::before {
+  color: var(--text-primary);
+}
+
+/* Data readout — numbers are always mono, always tabular. */
+.sig-data {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
+}
+
+.sig-key {
+  color: var(--amber);
+}
+
+/* Panel: a steel-bordered instrument module. */
+.sig-panel {
+  background: var(--surface);
+  border: var(--hair) solid var(--steel);
+  border-radius: var(--radius);
+}
+
+.sig-panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s2);
+  padding: var(--s2) var(--s3);
+  border-bottom: var(--hair) solid var(--hairline);
+  font-family: var(--font-mono);
+  font-size: var(--fs-label);
+  letter-spacing: var(--tracking-label);
+  text-transform: lowercase;
+  color: var(--text-secondary);
+  user-select: none;
+}
+
+.sig-panel-body {
+  padding: var(--s3);
+}
+
+/* Bracket button: `[visualize →]` */
+.sig-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s1);
+  padding: var(--s2) var(--s3);
+  border: var(--hair) solid var(--steel);
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-size: var(--fs-label);
+  letter-spacing: 0.08em;
+  text-transform: lowercase;
+  white-space: nowrap;
+  transition: color var(--t-fast) var(--ease),
+    border-color var(--t-fast) var(--ease),
+    background-color var(--t-fast) var(--ease);
+}
+
+.sig-btn:hover:not(:disabled) {
+  color: var(--text-primary);
+  border-color: var(--text-dim);
+}
+
+.sig-btn[data-variant='primary'] {
+  color: var(--amber);
+  border-color: var(--amber-dim);
+}
+
+.sig-btn[data-variant='primary']:hover:not(:disabled) {
+  color: var(--amber-bright);
+  border-color: var(--amber);
+  background: rgba(255, 176, 0, 0.06);
+}
+
+.sig-btn[data-active='true'] {
+  color: var(--amber);
+  border-color: var(--amber-dim);
+}
+
+/* Ghost button — for dense rows of controls. */
+.sig-btn[data-variant='ghost'] {
+  border-color: transparent;
+  padding: var(--s1) var(--s2);
+}
+
+.sig-btn[data-variant='ghost']:hover:not(:disabled) {
+  border-color: var(--hairline);
+}
+
+/* Field */
+.sig-field {
+  width: 100%;
+  padding: var(--s2) var(--s3);
+  background: var(--bg);
+  border: var(--hair) solid var(--steel);
+  border-radius: var(--radius);
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: var(--fs-body);
+  caret-color: var(--amber);
+  transition: border-color var(--t-fast) var(--ease);
+}
+
+.sig-field::placeholder {
+  color: var(--text-dim);
+}
+
+.sig-field:focus {
+  border-color: var(--amber-dim);
+  outline: none;
+}
+
+.sig-field:disabled {
+  color: var(--text-dim);
+}
+
+/* Select — same instrument, native arrow removed. */
+.sig-select {
+  appearance: none;
+  background-image: none;
+  cursor: pointer;
+}
+
+/* Checkbox / radio, squared off. */
+.sig-check {
+  appearance: none;
+  width: 12px;
+  height: 12px;
+  flex: none;
+  border: var(--hair) solid var(--steel);
+  border-radius: 0;
+  background: var(--bg);
+  cursor: pointer;
+  transition: border-color var(--t-fast) var(--ease);
+}
+
+.sig-check:checked {
+  border-color: var(--amber);
+  background: var(--amber);
+}
+
+/* Range — a hairline track with an amber head. */
+.sig-range {
+  appearance: none;
+  width: 100%;
+  height: 1px;
+  background: var(--steel);
+  cursor: pointer;
+}
+
+.sig-range::-webkit-slider-thumb {
+  appearance: none;
+  width: 3px;
+  height: 12px;
+  background: var(--amber);
+  border-radius: 0;
+  cursor: pointer;
+}
+
+.sig-range::-moz-range-thumb {
+  width: 3px;
+  height: 12px;
+  border: none;
+  border-radius: 0;
+  background: var(--amber);
+  cursor: pointer;
+}
+
+/* Structural rule */
+.sig-rule {
+  height: var(--hair);
+  background: var(--hairline);
+  border: 0;
+}
+
+/* Status dot — amber for active, live green only for "alive". */
+.sig-dot {
+  width: 4px;
+  height: 4px;
+  flex: none;
+  border-radius: 0;
+  background: var(--text-dim);
+}
+
+.sig-dot[data-state='on'] {
+  background: var(--amber);
+}
+
+.sig-dot[data-state='live'] {
+  background: var(--live);
+}
+
+/* Terminal loading bar: [████░░░░] 72% — never a spinner. */
+.sig-bar {
+  font-family: var(--font-mono);
+  font-size: var(--fs-body);
+  letter-spacing: 0.05em;
+  color: var(--amber);
+  white-space: nowrap;
+}
+
+.sig-bar-empty {
+  color: var(--text-dim);
+}
+
+/* Tag / badge — a count, not a pill. */
+.sig-tag {
+  font-family: var(--font-mono);
+  font-size: var(--fs-micro);
+  letter-spacing: 0.1em;
+  color: var(--text-dim);
+  border: var(--hair) solid var(--hairline);
+  border-radius: var(--radius);
+  padding: 1px var(--s1);
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+   Panel titles.
+   The five feature panels each shipped their own title styling — sans-serif,
+   semibold, title case. One rule brings them all into the instrument voice.
+   S2 folds these into HudLayout; until then this is the shared treatment.
+   ───────────────────────────────────────────────────────────────────────── */
+
+.prefs-header-title,
+.export-header-title,
+.heatmaps-title,
+.filter-sets-header-title,
+.collab-header-title {
+  font-family: var(--font-mono);
+  font-size: var(--fs-label);
+  font-weight: 400;
+  letter-spacing: var(--tracking-label);
+  text-transform: lowercase;
+  color: var(--text-primary);
+}
+
+/* Panel toggles and count badges */
+.prefs-toggle,
+.collab-toggle,
+.filter-sets-header .toggle,
+.export-header .toggle,
+.heatmaps-header .toggle {
+  font-family: var(--font-mono);
+  font-size: var(--fs-micro);
+  color: var(--text-dim);
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+   Accessibility
+   ───────────────────────────────────────────────────────────────────────── */
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+
+.skip-link {
+  position: absolute;
+  top: -100px;
+  left: var(--s3);
+  z-index: var(--z-modal);
+  padding: var(--s2) var(--s3);
+  background: var(--surface);
+  border: var(--hair) solid var(--amber);
+  border-radius: var(--radius);
+  color: var(--amber);
+  font-family: var(--font-mono);
+  font-size: var(--fs-label);
+}
+
+.skip-link:focus {
+  top: var(--s3);
+  text-decoration: none;
+}
+
+/* Reduced motion: static everything. Nothing animates, nothing drifts,
+   all data stays readable as text. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

@@ -74,10 +74,10 @@ export default function UserPreferencesPanel({ onPreferencesChange }) {
   const handleSaveAll = useCallback(() => {
     const ok = userPreferences.saveAll(prefs)
     if (ok) {
-      showMessage('✅ Preferences saved!')
+      showMessage('preferences saved')
       if (onPreferencesChange) onPreferencesChange(prefs)
     } else {
-      showMessage('❌ Failed to save preferences', 'error')
+      showMessage('failed to save preferences', 'error')
     }
   }, [prefs, onPreferencesChange, showMessage])
 
@@ -85,7 +85,7 @@ export default function UserPreferencesPanel({ onPreferencesChange }) {
   const handleReset = useCallback(() => {
     const defaults = userPreferences.reset()
     setPrefs(defaults)
-    showMessage('🔄 Preferences reset to defaults')
+    showMessage('preferences reset to defaults')
     if (onPreferencesChange) onPreferencesChange(defaults)
   }, [onPreferencesChange, showMessage])
 
@@ -100,9 +100,9 @@ export default function UserPreferencesPanel({ onPreferencesChange }) {
       a.download = 'github3dviz-preferences.json'
       a.click()
       URL.revokeObjectURL(url)
-      showMessage('📦 Preferences exported!')
+      showMessage('preferences exported')
     } catch {
-      showMessage('❌ Export failed', 'error')
+      showMessage('export failed', 'error')
     }
   }, [showMessage])
 
@@ -113,7 +113,7 @@ export default function UserPreferencesPanel({ onPreferencesChange }) {
       setPrefs(result.prefs)
       setImportJson('')
       setShowImportArea(false)
-      showMessage('✅ Preferences imported!')
+      showMessage('preferences imported')
       if (onPreferencesChange) onPreferencesChange(result.prefs)
     } else {
       showMessage(result.message, 'error')
@@ -172,11 +172,11 @@ export default function UserPreferencesPanel({ onPreferencesChange }) {
           value={prefs.filters.sortBy}
           onChange={e => handleSectionUpdate('filters', { sortBy: e.target.value })}
         >
-          <option value="stars">⭐ Stars</option>
-          <option value="updated">🕒 Updated</option>
-          <option value="name">🔤 Name</option>
-          <option value="forks">🍴 Forks</option>
-          <option value="created">📅 Created</option>
+          <option value="stars">stars</option>
+          <option value="updated">updated</option>
+          <option value="name">name</option>
+          <option value="forks">forks</option>
+          <option value="created">created</option>
         </select>
       </div>
     </div>
@@ -216,10 +216,10 @@ export default function UserPreferencesPanel({ onPreferencesChange }) {
           value={prefs.visualization.colorScheme}
           onChange={e => handleSectionUpdate('visualization', { colorScheme: e.target.value })}
         >
-          <option value="language">💬 Language</option>
-          <option value="stars">⭐ Stars</option>
-          <option value="age">📅 Age</option>
-          <option value="forks">🍴 Forks</option>
+          <option value="language">language</option>
+          <option value="stars">stars</option>
+          <option value="age">age</option>
+          <option value="forks">forks</option>
         </select>
       </div>
 
@@ -297,9 +297,9 @@ export default function UserPreferencesPanel({ onPreferencesChange }) {
           value={prefs.performance.quality}
           onChange={e => handleSectionUpdate('performance', { quality: e.target.value })}
         >
-          <option value="high">🔥 High</option>
-          <option value="medium">⚡ Medium</option>
-          <option value="low">🪫 Low (fastest)</option>
+          <option value="high">high</option>
+          <option value="medium">medium</option>
+          <option value="low">low (fastest)</option>
         </select>
       </div>
 
@@ -371,11 +371,10 @@ export default function UserPreferencesPanel({ onPreferencesChange }) {
       {/* Collapsible header */}
       <div className="prefs-header" onClick={() => setExpanded(prev => !prev)}>
         <div className="prefs-header-title">
-          <span className="icon">⚙️</span>
-          <span>Preferences</span>
+          <span>preferences</span>
         </div>
         <div className="prefs-header-actions">
-          <span className="prefs-toggle">{expanded ? '▼' : '▶'}</span>
+          <span className="prefs-toggle">{expanded ? '▾' : '▸'}</span>
         </div>
       </div>
 
@@ -434,19 +433,19 @@ export default function UserPreferencesPanel({ onPreferencesChange }) {
           {/* Footer buttons */}
           <div className="prefs-footer">
             <button className="prefs-btn prefs-btn-primary" onClick={handleSaveAll}>
-              💾 Save
+              save
             </button>
             <button className="prefs-btn prefs-btn-secondary" onClick={handleExport}>
-              📤 Export
+              export
             </button>
             <button
               className="prefs-btn prefs-btn-secondary"
               onClick={() => setShowImportArea(prev => !prev)}
             >
-              📥 Import
+              import
             </button>
             <button className="prefs-btn prefs-btn-danger" onClick={handleReset}>
-              🔄 Reset
+              reset
             </button>
           </div>
         </div>

@@ -17,7 +17,7 @@ function easeOutBack(t) {
 
 export default function Visualizer({ repos, onRepoClick, detectedLanguages = [] }) {
   const containerRef = useRef(null)
-  const { scene, camera, renderer } = useThreeScene(containerRef)
+  const { scene, camera, renderer, error: sceneError } = useThreeScene(containerRef)
 
   const spheresRef = useRef([])
   const visibleSpheresRef = useRef([])
@@ -122,9 +122,10 @@ export default function Visualizer({ repos, onRepoClick, detectedLanguages = [] 
     // CLEANUP: Remove and dispose previous spheres
     if (sphereGroupRef.current) {
       sphereGroupRef.current.children.forEach((sphere) => {
-        // Dispose per-sphere materials (they are cloned, not shared)
+        // Materials are per-sphere (opacity and emissive vary independently),
+        // so each one is disposed here. The geometry is SHARED by every sphere
+        // and is disposed once, via geometriesRef below.
         sphere.material?.dispose()
-        sphere.geometry?.dispose()
       })
       scene.remove(sphereGroupRef.current)
     }
@@ -146,20 +147,22 @@ export default function Visualizer({ repos, onRepoClick, detectedLanguages = [] 
     // Determine geometry detail level (LOD) based on repo count
     const detail = repos.length > 150 ? 1 : repos.length > 50 ? 2 : 4
 
-    // Cache geometries by size to reduce duplication
-    const geometriesBySize = {}
+    // ONE unit-radius geometry for every sphere.
+    //
+    // This previously built a geometry at radius `size` AND set the mesh scale
+    // to `size`, so the rendered radius was size SQUARED: a 0.3 repo shrank to
+    // 0.09 (invisible) while a 4.0 repo ballooned to 16 (a screen-filling blob
+    // that swallowed its neighbours). Nobody had seen it because the scene only
+    // renders after a successful search, and headless Chromium has no WebGL, so
+    // every automated check of this project had been looking at an empty canvas.
+    //
+    // Unit geometry + per-mesh scale is also what S5 needs for InstancedMesh.
+    const geometry = new THREE.IcosahedronGeometry(1, detail)
+    geometriesRef.current.push(geometry)
 
     repos.forEach((repoData, index) => {
       const { repo, position, size } = repoData
       const { color } = getLanguageInfo(repo.language)
-
-      // Reuse geometry for same size
-      const sizeKey = size.toFixed(2)
-      if (!geometriesBySize[sizeKey]) {
-        geometriesBySize[sizeKey] = new THREE.IcosahedronGeometry(size, detail)
-        geometriesRef.current.push(geometriesBySize[sizeKey])
-      }
-      const geometry = geometriesBySize[sizeKey]
 
       // Each sphere gets its OWN material (so opacity/emissive can vary independently)
       const material = new THREE.MeshPhongMaterial({
@@ -519,21 +522,27 @@ export default function Visualizer({ repos, onRepoClick, detectedLanguages = [] 
 
   return (
     <>
+      {/* The scene sits at z-index 0 (see App.css .scene). It used to be
+          position:fixed with no z-index, which painted it over the header and
+          made the whole app read as a blank page. */}
       <div
         ref={containerRef}
+        className="scene"
         role="application"
         aria-label="3D GitHub repository visualization. Use Tab to cycle through repositories, +/- to zoom, mouse to orbit."
         tabIndex={0}
-        style={{
-          width: '100vw',
-          height: '100vh',
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          overflow: 'hidden',
-          outline: 'none'
-        }}
       />
+
+      {/* useThreeScene has always detected missing WebGL and set this error,
+          but nothing ever rendered it — a visitor without WebGL saw a silent
+          empty page. Errors are text in this system, never choreography. */}
+      {sceneError && (
+        <div className="scene-error" role="alert">
+          <p className="sig-say" data-tone="error">
+            {sceneError}
+          </p>
+        </div>
+      )}
 
       {/* Enhanced Tooltip */}
       {tooltip && (
@@ -554,7 +563,7 @@ export default function Visualizer({ repos, onRepoClick, detectedLanguages = [] 
           {tooltip.description && (
             <div className="tooltip-desc">{tooltip.description}</div>
           )}
-          <div className="tooltip-stars">⭐ {tooltip.stars.toLocaleString()} stars</div>
+          <div className="tooltip-stars">{tooltip.stars.toLocaleString()} stars</div>
         </div>
       )}
     </>

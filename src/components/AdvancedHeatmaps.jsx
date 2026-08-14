@@ -51,9 +51,9 @@ export default function AdvancedHeatmaps({ repos }) {
               {hoveredItem?.id === item.id && (
                 <div className="heatmap-tooltip">
                   <div className="tooltip-name">{item.name}</div>
-                  <div className="tooltip-stat">⭐ {item.stars}</div>
-                  <div className="tooltip-stat">🍴 {item.forks}</div>
-                  <div className="tooltip-stat">❗ {item.issues}</div>
+                  <div className="tooltip-stat">stars {item.stars}</div>
+                  <div className="tooltip-stat">forks {item.forks}</div>
+                  <div className="tooltip-stat">issues {item.issues}</div>
                 </div>
               )}
             </div>
@@ -99,7 +99,7 @@ export default function AdvancedHeatmaps({ repos }) {
                   }}
                 >
                   <span className="bar-label">
-                    ⭐ {item.avgStars} avg stars
+                    avg {item.avgStars} stars
                   </span>
                 </div>
               </div>
@@ -156,8 +156,8 @@ export default function AdvancedHeatmaps({ repos }) {
                 {hoveredItem?.month === item.month && (
                   <div className="activity-tooltip">
                     <div>{item.month}</div>
-                    <div>📦 {item.reposCreated} repos</div>
-                    <div>⭐ {item.totalStars} stars</div>
+                    <div>{item.reposCreated} repos</div>
+                    <div>{item.totalStars} stars</div>
                   </div>
                 )}
               </div>
@@ -199,8 +199,8 @@ export default function AdvancedHeatmaps({ repos }) {
                   <div className="scatter-tooltip">
                     <div className="tooltip-name">{item.name}</div>
                     <div>Age: {item.ageInYears} years</div>
-                    <div>⭐ {item.stars} stars</div>
-                    <div>🍴 {item.forks} forks</div>
+                    <div>{item.stars} stars</div>
+                    <div>{item.forks} forks</div>
                   </div>
                 )}
               </div>
@@ -272,8 +272,8 @@ export default function AdvancedHeatmaps({ repos }) {
           {hoveredItem && hoveredItem.repoName && (
             <div className="growth-tooltip">
               <div className="tooltip-name">{hoveredItem.repoName}</div>
-              <div>📦 {hoveredItem.cumulativeRepos} repos total</div>
-              <div>⭐ {hoveredItem.cumulativeStars} cumulative stars</div>
+              <div>{hoveredItem.cumulativeRepos} repos total</div>
+              <div>{hoveredItem.cumulativeStars} cumulative stars</div>
             </div>
           )}
         </div>
@@ -288,10 +288,10 @@ export default function AdvancedHeatmaps({ repos }) {
         onClick={() => setExpanded(!expanded)}
       >
         <div className="heatmaps-title">
-          <span className="icon">🔥</span>
-          <span>Advanced Heatmaps</span>
+          <span className="icon">▚</span>
+          <span>heatmaps</span>
         </div>
-        <span className="toggle">{expanded ? '▼' : '▶'}</span>
+        <span className="toggle">{expanded ? '▾' : '▸'}</span>
       </div>
 
       {expanded && (
@@ -302,31 +302,31 @@ export default function AdvancedHeatmaps({ repos }) {
               className={`tab ${selectedView === 'contribution' ? 'active' : ''}`}
               onClick={() => setSelectedView('contribution')}
             >
-              🔥 Contribution
+              contribution
             </button>
             <button
               className={`tab ${selectedView === 'language' ? 'active' : ''}`}
               onClick={() => setSelectedView('language')}
             >
-              💬 Languages
+              languages
             </button>
             <button
               className={`tab ${selectedView === 'activity' ? 'active' : ''}`}
               onClick={() => setSelectedView('activity')}
             >
-              📈 Activity
+              activity
             </button>
             <button
               className={`tab ${selectedView === 'maturity' ? 'active' : ''}`}
               onClick={() => setSelectedView('maturity')}
             >
-              📊 Maturity
+              maturity
             </button>
             <button
               className={`tab ${selectedView === 'growth' ? 'active' : ''}`}
               onClick={() => setSelectedView('growth')}
             >
-              📈 Growth
+              growth
             </button>
           </div>
 

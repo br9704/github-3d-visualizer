@@ -1,40 +1,36 @@
-import { useContext } from 'react'
-import { ThemeContext } from '../contexts/ThemeContext'
 import '../styles/Header.css'
 
 /**
- * Header — app title bar with dark/light theme toggle button.
- * Consumes ThemeContext for current theme state.
+ * Header — the instrument bar.
+ *
+ * Left: the section label, in the portfolio's `</name>` idiom.
+ * Right: corner micro-readouts and the help control.
+ *
+ * The theme toggle is gone: SIGNAL has no light theme. The old emoji
+ * controls are replaced with monospace bracket buttons.
  */
-export default function Header() {
-  const { isDark, toggleTheme } = useContext(ThemeContext)
-
+export default function Header({ status = 'idle', repoCount = 0, onHelp }) {
   return (
-    <div className="header">
-      <div className="header-left">
-        <h1 className="header-title">GitHub 3D Visualizer</h1>
+    <header className="hdr">
+      <div className="hdr-left">
+        <span className="sig-dot" data-state={status === 'live' ? 'live' : status === 'busy' ? 'on' : 'off'} />
+        <h1 className="hdr-title sig-label">&lt;/github universe&gt;</h1>
       </div>
-      <div className="header-right">
+
+      <div className="hdr-right">
+        <span className="sig-micro hdr-readout">
+          {status === 'busy' ? 'FETCHING' : repoCount > 0 ? `${repoCount} NODES` : 'STANDBY'}
+        </span>
         <button
-          className="theme-toggle"
-          onClick={toggleTheme}
-          title={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
-          aria-label="Toggle theme"
+          className="sig-btn"
+          data-variant="ghost"
+          onClick={onHelp}
+          title="Keyboard shortcuts (?)"
+          aria-label="Show keyboard shortcuts"
         >
-          {isDark ? '☀️' : '🌙'}
-        </button>
-        <button
-          className="help-button"
-          onClick={() => {
-            const event = new KeyboardEvent('keydown', { key: '?' })
-            window.dispatchEvent(event)
-          }}
-          title="Show keyboard shortcuts (? key)"
-          aria-label="Show help"
-        >
-          ❓
+          [?]
         </button>
       </div>
-    </div>
+    </header>
   )
 }

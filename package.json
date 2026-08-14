@@ -14,7 +14,10 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "guards": "node scripts/guards.mjs",
+    "shots": "node scripts/shots.mjs",
+    "verify": "npm run build && npm run guards"
   },
   "dependencies": {
     "axios": "^1.6.2",
@@ -24,6 +27,8 @@
     "three-stdlib": "^2.36.1"
   },
   "devDependencies": {
+    "@fontsource-variable/dm-sans": "^5.3.0",
+    "@fontsource-variable/jetbrains-mono": "^5.3.0",
     "@types/react": "^18.2.43",
     "@types/react-dom": "^18.2.17",
     "@vitejs/plugin-react": "^4.2.1",

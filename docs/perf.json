@@ -1,0 +1,67 @@
+{
+  "measuredAt": "2026-08-14",
+  "hardware": "Apple M4 Pro",
+  "viewport": "1440x900",
+  "modes": {
+    "headed": {
+      "renderer": "GPU-backed Chromium (headed) on the machine named below",
+      "caveat": "Measured in a GPU-backed browser window on one machine. Representative of that machine only; a public claim must name the hardware.",
+      "runs": [
+        {
+          "repos": 100,
+          "samples": 240,
+          "medianMs": 4.2,
+          "p95Ms": 5.1,
+          "worstMs": 5.8,
+          "medianFps": 238.1,
+          "p95Fps": 196.1,
+          "workMedianMs": 0.1,
+          "workP95Ms": 0.2,
+          "drawCalls": 3
+        },
+        {
+          "repos": 250,
+          "samples": 240,
+          "medianMs": 4.1,
+          "p95Ms": 5,
+          "worstMs": 5.2,
+          "medianFps": 243.9,
+          "p95Fps": 200,
+          "workMedianMs": 0.2,
+          "workP95Ms": 0.2,
+          "drawCalls": 3
+        }
+      ]
+    },
+    "headless": {
+      "renderer": "SwiftShader (software WebGL2) — headless Chromium, no GPU",
+      "caveat": "These are a FLOOR, not a desktop figure. Headless Chromium here has no GPU, so rasterisation runs on the CPU via SwiftShader. Any public FPS claim must state which of the two it is.",
+      "runs": [
+        {
+          "repos": 100,
+          "samples": 139,
+          "medianMs": 61.8,
+          "p95Ms": 100,
+          "worstMs": 100,
+          "medianFps": 16.2,
+          "p95Fps": 10,
+          "workMedianMs": 0.3,
+          "workP95Ms": 0.4,
+          "drawCalls": 3
+        },
+        {
+          "repos": 250,
+          "samples": 203,
+          "medianMs": 53.1,
+          "p95Ms": 67.5,
+          "worstMs": 100,
+          "medianFps": 18.8,
+          "p95Fps": 14.8,
+          "workMedianMs": 0.3,
+          "workP95Ms": 0.4,
+          "drawCalls": 3
+        }
+      ]
+    }
+  }
+}

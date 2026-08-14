@@ -3,17 +3,23 @@ import * as THREE from 'three'
 // three ships OrbitControls itself; three-stdlib was a second copy of it.
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
 import { useThreeScene } from '../hooks/useThreeScene'
-import { getLanguageInfo } from '../utils/colors'
+import { getLanguageInfo, getLanguageCode, getAllLanguageCodes } from '../utils/colors'
 import { generateAmbientGalaxy } from '../scene/ambientGalaxy'
+import {
+  InstancedField,
+  WireField,
+  LabelField,
+  HoverRing,
+  isAlive
+} from '../scene/instancedField'
 import { easeOutCubic, easeOutQuad, clamp01 } from '../scene/easing'
-import '../styles/Tooltip.css'
 
 /**
  * Visualizer — the scene, and the motion state machine that drives it.
  *
  * Implements MOTION.md. The app's original failure was that nothing moved
  * until a search succeeded, and for most visitors nothing ever did. So the
- * scene now has something in it from the first frame:
+ * scene has something in it from the first frame:
  *
  *   ambient   seeded placeholder galaxy, dimmed, drifting. No API call.
  *   dimming   visitor started typing; the galaxy eases back to 25%
@@ -23,67 +29,80 @@ import '../styles/Tooltip.css'
  *             first, 25ms apart. They do not fly in.
  *   settled   ambient drift resumes
  *
- * prefers-reduced-motion collapses every one of these to instant placement
- * with no drift, and the scene stays fully readable.
+ * Both galaxies are single InstancedMesh draw calls: 100 repositories used to
+ * mean 100 draw calls and 100 cloned materials.
+ *
+ * prefers-reduced-motion collapses every phase to instant placement with no
+ * drift, and the scene stays fully readable.
  */
 
 /* Timings — all from MOTION.md, in seconds. */
 const AMBIENT_STAGGER = 0.015
 const AMBIENT_GROW = 0.5
 const AMBIENT_DRIFT = 0.03 // rad/s
-const AMBIENT_DIM = 0.5
-const AMBIENT_DIM_TYPING = 0.25
+const AMBIENT_FADE = 0.5
+const AMBIENT_FADE_TYPING = 0.25
 const DISSOLVE = 0.4
 const CAMERA_PULLBACK = 0.6
 const CAMERA_PULLBACK_FACTOR = 1.15
 const ENTRANCE_STAGGER = 0.025
 const ENTRANCE_GROW = 0.45
 const ENTRANCE_STAGGER_CAP = 100
-const IDLE_AFTER = 60 // seconds untouched before drift halves
+const FLY_TO = 0.5 // click -> camera flight
+const FLY_BACK = 0.35 // Esc reverses
+const SELECTED_DIM = 0.3 // scene drifts behind the detail panel at 30%
+const HOVER_SCALE = 1.15
+const IDLE_AFTER = 60
 
-// --text-secondary. Bright enough that 50% opacity still reads on #050505;
-// --text-dim was correct as a token but disappeared once dimmed.
-const AMBIENT_COLOR = 0x98928a
+const AMBIENT_COLOR = 0x98928a // scenery, never data
 
 export default function Visualizer({
   repos,
   onRepoClick,
   filteredLanguage = null,
+  selectedRepo = null,
   isTyping = false,
-  onSettled
+  onSettled,
+  onFrameStats
 }) {
   const containerRef = useRef(null)
   const { scene, camera, renderer, error: sceneError, ready } = useThreeScene(containerRef)
 
-  const groupRef = useRef(null)
-  const ambientGroupRef = useRef(null)
-  const spheresRef = useRef([])
-  const ambientRef = useRef([])
-  const geometryRef = useRef(null)
-  const ambientGeometryRef = useRef(null)
-  const ambientMaterialRef = useRef(null)
+  const fieldRef = useRef(null)
+  const wireRef = useRef(null)
+  const labelRef = useRef(null)
+  const ambientFieldRef = useRef(null)
+  const ambientDataRef = useRef([])
+  const dataRef = useRef([])
+  const ringRef = useRef(null)
   const controlsRef = useRef(null)
 
   const raycasterRef = useRef(new THREE.Raycaster())
   const mouseRef = useRef(new THREE.Vector2())
-  const hoveredRef = useRef(null)
-  const frustumRef = useRef(new THREE.Frustum())
-  const projMatrixRef = useRef(new THREE.Matrix4())
-
+  const hoveredRef = useRef(-1)
   const currentIndexRef = useRef(-1)
   const [hovered, setHovered] = useState(null)
 
-  /** The motion state machine. Refs, not state — the render loop reads it. */
   const phaseRef = useRef('ambient')
   const phaseStartRef = useRef(0)
   const lastInputRef = useRef(0)
   const cameraDistRef = useRef(80)
   const reducedMotionRef = useRef(false)
-
-  /** The active language filter, read by the render loop. A ref rather than a
-      dep so changing the filter never tears down the loop or the scene. */
   const filterRef = useRef(filteredLanguage)
   filterRef.current = filteredLanguage
+
+  /** Camera flight, driven by clicking a sphere. */
+  const flightRef = useRef(null)
+  const homeRef = useRef(null)
+  const selectedRef = useRef(null)
+
+  /** Rolling frame times, so the perf claim can be measured, not asserted.
+      `frameTimes` is the interval between frames — capped by vsync, so on fast
+      hardware it measures the display, not the workload. `workTimes` is the
+      time actually spent inside the render loop, which is the number that
+      says whether this app could sustain a frame rate. */
+  const frameTimesRef = useRef([])
+  const workTimesRef = useRef([])
 
   /* ── Reduced motion ──────────────────────────────────────────────────── */
 
@@ -97,292 +116,350 @@ export default function Visualizer({
     return () => mq.removeEventListener('change', apply)
   }, [])
 
-  /* ── Ambient galaxy ───────────────────────────────────────────────────
-     Built once, as soon as the renderer exists. No API call, works offline,
-     never rate-limits. */
+  /* ── Ambient galaxy ──────────────────────────────────────────────────── */
 
   useEffect(() => {
     if (!scene || !ready) return
 
     const items = generateAmbientGalaxy()
-    const geometry = new THREE.IcosahedronGeometry(1, 2)
-    ambientGeometryRef.current = geometry
+    const field = new InstancedField(items.length, 2)
+    ambientFieldRef.current = field
+    ambientDataRef.current = items
 
-    // ONE shared material: the ambient spheres always fade together, so they
-    // never need independent opacity. 72 spheres, 1 material.
-    const material = new THREE.MeshPhongMaterial({
-      color: AMBIENT_COLOR,
-      emissive: new THREE.Color(AMBIENT_COLOR).multiplyScalar(0.25),
-      shininess: 20,
-      transparent: true,
-      opacity: 0,
-      depthWrite: false
-    })
-    ambientMaterialRef.current = material
+    items.forEach((_, i) => field.setBaseColor(i, AMBIENT_COLOR))
+    scene.add(field.mesh)
 
-    const group = new THREE.Group()
-    ambientGroupRef.current = group
-    scene.add(group)
-
-    ambientRef.current = items.map((item, i) => {
-      const mesh = new THREE.Mesh(geometry, material)
-      mesh.position.set(item.position.x, item.position.y, item.position.z)
-      mesh.scale.setScalar(reducedMotionRef.current ? item.size : 0)
-      mesh.userData = { size: item.size, order: i }
-      group.add(mesh)
-      return mesh
-    })
-
-    // Frame it. A disc viewed straight down its own axis is a thin band —
-    // the camera has to sit ABOVE the plane for it to read as a galaxy.
-    if (camera && !spheresRef.current.length) {
-      frameAmbient(camera)
-    }
+    if (camera) frameAmbient(camera)
 
     phaseRef.current = 'ambient'
     phaseStartRef.current = performance.now() / 1000
 
     return () => {
-      scene.remove(group)
-      geometry.dispose()
-      material.dispose()
-      ambientRef.current = []
-      ambientGroupRef.current = null
+      scene.remove(field.mesh)
+      field.dispose()
+      ambientFieldRef.current = null
+      ambientDataRef.current = []
     }
   }, [scene, ready, camera])
 
-  /* ── Real repositories ────────────────────────────────────────────────
-     Positioned at final coordinates from frame one. Things GROW here; they
-     do not fly. */
+  /* ── Hover ring ──────────────────────────────────────────────────────── */
+
+  useEffect(() => {
+    if (!scene || !ready) return
+    const ring = new HoverRing()
+    ringRef.current = ring
+    scene.add(ring.mesh)
+    return () => {
+      scene.remove(ring.mesh)
+      ring.dispose()
+      ringRef.current = null
+    }
+  }, [scene, ready])
+
+  /* ── Real repositories ───────────────────────────────────────────────── */
 
   useEffect(() => {
     if (!scene || !camera || !renderer) return
 
-    // Tear down the previous universe.
-    if (groupRef.current) {
-      groupRef.current.children.forEach((m) => m.material?.dispose())
-      scene.remove(groupRef.current)
-      groupRef.current = null
+    if (fieldRef.current) {
+      scene.remove(fieldRef.current.mesh)
+      fieldRef.current.dispose()
+      fieldRef.current = null
     }
-    geometryRef.current?.dispose()
-    geometryRef.current = null
-    spheresRef.current = []
-    hoveredRef.current = null
+    if (wireRef.current) {
+      scene.remove(wireRef.current.segments)
+      wireRef.current.dispose()
+      wireRef.current = null
+    }
+    if (labelRef.current) {
+      scene.remove(labelRef.current.mesh)
+      labelRef.current.dispose()
+      labelRef.current = null
+    }
+    dataRef.current = []
+    hoveredRef.current = -1
     currentIndexRef.current = -1
+    setHovered(null)
 
     if (!repos || repos.length === 0) {
-      // Back to the ambient galaxy — a failed or cleared search must not
-      // leave a dead canvas.
-      if (ambientGroupRef.current) {
-        phaseRef.current = 'ambient'
-        phaseStartRef.current = performance.now() / 1000
-      }
+      phaseRef.current = 'ambient'
+      phaseStartRef.current = performance.now() / 1000
+      if (camera) frameAmbient(camera)
       return
     }
 
-    const group = new THREE.Group()
-    groupRef.current = group
-    scene.add(group)
+    const detail = repos.length > 150 ? 1 : repos.length > 50 ? 2 : 3
 
-    const detail = repos.length > 150 ? 1 : repos.length > 50 ? 2 : 4
-
-    // One shared unit-radius geometry; per-mesh scale carries the size.
-    const geometry = new THREE.IcosahedronGeometry(1, detail)
-    geometryRef.current = geometry
-
-    // Largest first — MOTION.md wants the big shapes to establish the form
-    // before the detail arrives.
+    // Largest first — the big shapes establish the form before the detail
+    // arrives.
     const ordered = [...repos].sort((a, b) => b.size - a.size)
+    const field = new InstancedField(ordered.length, detail)
+    fieldRef.current = field
 
-    spheresRef.current = ordered.map((data, order) => {
-      const { repo, position, size } = data
-      const { color } = getLanguageInfo(repo.language)
-
-      const material = new THREE.MeshPhongMaterial({
-        color,
-        emissive: new THREE.Color(color).multiplyScalar(0.28),
-        shininess: 90,
-        transparent: true,
-        opacity: 0
-      })
-
-      const mesh = new THREE.Mesh(geometry, material)
-      mesh.position.set(position.x, position.y, position.z)
-      mesh.scale.setScalar(reducedMotionRef.current ? size : 0)
-      mesh.userData = { repo, order, baseSize: size, hoverScale: 1, filterScale: 1 }
-      group.add(mesh)
-      return mesh
+    const now = Date.now()
+    dataRef.current = ordered.map((d, i) => {
+      const { color } = getLanguageInfo(d.repo.language)
+      field.setBaseColor(i, color)
+      field.setTransform(i, d.position, reducedMotionRef.current ? d.size : 0.0001)
+      field.setFade(i, reducedMotionRef.current ? 1 : 0)
+      return {
+        repo: d.repo,
+        position: new THREE.Vector3(d.position.x, d.position.y, d.position.z),
+        baseSize: d.size,
+        order: i,
+        hoverScale: 1,
+        filterScale: 1,
+        fade: reducedMotionRef.current ? 1 : 0,
+        alive: isAlive(d.repo, now),
+        code: getLanguageCode(d.repo.language)
+      }
     })
+    field.commit()
+    scene.add(field.mesh)
 
-    frameCamera(group, camera, renderer, controlsRef)
+    // Hairline facet shell — this is what makes a node read as a constructed
+    // instrument rather than a shaded ball.
+    const wire = new WireField(ordered.length, Math.min(detail, 2))
+    wire.rebuild(dataRef.current.map((d) => ({ position: d.position, size: d.baseSize })))
+    wire.setOpacity(0)
+    wireRef.current = wire
+    scene.add(wire.segments)
+
+    // Billboarded monospace language codes — the "icon" on each node.
+    const labels = new LabelField(getAllLanguageCodes(), ordered.length)
+    dataRef.current.forEach((d, i) => {
+      labels.set(i, d.position, getLanguageCode(d.repo.language), d.baseSize * 0.9, 0, d.baseSize)
+    })
+    labels.commit()
+    labelRef.current = labels
+    scene.add(labels.mesh)
+
+    frameCamera(camera, renderer)
 
     phaseRef.current = reducedMotionRef.current ? 'settled' : 'dissolving'
     phaseStartRef.current = performance.now() / 1000
 
-    if (reducedMotionRef.current) {
-      spheresRef.current.forEach((m) => (m.material.opacity = 1))
-      if (ambientMaterialRef.current) ambientMaterialRef.current.opacity = 0
-      onSettled?.()
-    }
+    if (reducedMotionRef.current) onSettled?.()
   }, [repos, scene, camera, renderer, onSettled])
 
-  /* ── The render loop ──────────────────────────────────────────────────── */
+  /* ── Click → camera flight ───────────────────────────────────────────── */
+
+  useEffect(() => {
+    selectedRef.current = selectedRepo
+    const ctrl = controlsRef.current
+    if (!ctrl || !camera) return
+
+    if (selectedRepo) {
+      const entry = dataRef.current.find((d) => d.repo === selectedRepo)
+      if (!entry) return
+
+      homeRef.current = {
+        position: camera.position.clone(),
+        target: ctrl.target.clone()
+      }
+
+      // Frame the sphere from where the camera already is, so the move reads
+      // as approaching rather than snapping to a canned angle.
+      const dir = camera.position.clone().sub(entry.position).normalize()
+      const stand = Math.max(entry.baseSize * 6, cameraDistRef.current * 0.28)
+
+      flightRef.current = {
+        t: 0,
+        duration: reducedMotionRef.current ? 0 : FLY_TO,
+        fromPos: camera.position.clone(),
+        toPos: entry.position.clone().addScaledVector(dir, stand),
+        fromTarget: ctrl.target.clone(),
+        toTarget: entry.position.clone()
+      }
+    } else if (homeRef.current) {
+      flightRef.current = {
+        t: 0,
+        duration: reducedMotionRef.current ? 0 : FLY_BACK,
+        fromPos: camera.position.clone(),
+        toPos: homeRef.current.position.clone(),
+        fromTarget: ctrl.target.clone(),
+        toTarget: homeRef.current.target.clone()
+      }
+      homeRef.current = null
+    }
+  }, [selectedRepo, camera])
+
+  /* ── The render loop ─────────────────────────────────────────────────── */
 
   useEffect(() => {
     if (!scene || !renderer || !camera) return
 
-    let raf
+    let raf = null
     let lastFrame = performance.now() / 1000
-    const frustum = frustumRef.current
-    const projMatrix = projMatrixRef.current
+    let running = true
 
     const animate = () => {
+      if (!running) return
       raf = requestAnimationFrame(animate)
 
-      const now = performance.now() / 1000
+      const workStart = performance.now()
+      const now = workStart / 1000
       const dt = Math.min(0.1, now - lastFrame)
       lastFrame = now
+
+      // Rolling window of frame intervals, so "60fps at 100+ repos" is a
+      // measurement rather than a claim.
+      const times = frameTimesRef.current
+      times.push(dt * 1000)
+      if (times.length > 240) times.shift()
+
       const t = now - phaseStartRef.current
       const phase = phaseRef.current
       const reduced = reducedMotionRef.current
+      const idle = now - lastInputRef.current > IDLE_AFTER
+      const driftScale = reduced ? 0 : idle ? 0.5 : 1
 
-      controlsRef.current?.update()
+      /* Camera flight */
+      const flight = flightRef.current
+      const ctrl = controlsRef.current
+      if (flight && ctrl) {
+        flight.t += dt
+        const p =
+          flight.duration === 0 ? 1 : easeOutQuad(clamp01(flight.t / flight.duration))
+        camera.position.lerpVectors(flight.fromPos, flight.toPos, p)
+        ctrl.target.lerpVectors(flight.fromTarget, flight.toTarget, p)
+        if (p >= 1) flightRef.current = null
+      }
 
-      projMatrix.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse)
-      frustum.setFromProjectionMatrix(projMatrix)
+      ctrl?.update()
 
-      const ambientMat = ambientMaterialRef.current
-      const ambientGroup = ambientGroupRef.current
-
-      /* ── Ambient galaxy ── */
-      if (ambientGroup && ambientMat) {
+      /* Ambient galaxy */
+      const af = ambientFieldRef.current
+      if (af) {
+        const items = ambientDataRef.current
         if (phase === 'ambient' || phase === 'dimming') {
-          const target = phase === 'dimming' ? AMBIENT_DIM_TYPING : AMBIENT_DIM
-
-          if (reduced) {
-            ambientMat.opacity = target
-            ambientRef.current.forEach((m) => m.scale.setScalar(m.userData.size))
-          } else {
-            // Stream in, centre outward, 15ms apart.
-            let allGrown = true
-            ambientRef.current.forEach((mesh) => {
-              const delay = mesh.userData.order * AMBIENT_STAGGER
-              const p = clamp01((t - delay) / AMBIENT_GROW)
-              if (p < 1) allGrown = false
-              mesh.scale.setScalar(easeOutCubic(p) * mesh.userData.size)
-            })
-            // Opacity follows the whole group, not each sphere, so the
-            // dimming transition stays uniform.
-            const fade = clamp01(t / 0.4)
-            ambientMat.opacity =
-              ambientMat.opacity + (target * fade - ambientMat.opacity) * Math.min(1, dt * 6)
-            if (allGrown) { /* settled into drift */ }
+          const targetFade = phase === 'dimming' ? AMBIENT_FADE_TYPING : AMBIENT_FADE
+          for (let i = 0; i < items.length; i++) {
+            const item = items[i]
+            const p = reduced ? 1 : clamp01((t - i * AMBIENT_STAGGER) / AMBIENT_GROW)
+            af.setTransform(i, item.position, Math.max(0.0001, easeOutCubic(p) * item.size))
+            af.setFade(i, targetFade * p)
           }
-
-          // Ambient drift, halved after a long idle.
-          const idle = now - lastInputRef.current > IDLE_AFTER
-          if (!reduced) {
-            ambientGroup.rotation.y += AMBIENT_DRIFT * dt * (idle ? 0.5 : 1)
-          }
+          af.mesh.rotation.y += AMBIENT_DRIFT * dt * driftScale
+          af.commit()
+          af.mesh.visible = true
         } else if (phase === 'dissolving') {
-          // Every placeholder scales to 0 over 400ms, staggered.
-          const p = clamp01(t / DISSOLVE)
-          ambientRef.current.forEach((mesh) => {
-            const delay = (mesh.userData.order / ambientRef.current.length) * 0.15
+          for (let i = 0; i < items.length; i++) {
+            const delay = (i / items.length) * 0.15
             const q = clamp01((t - delay) / DISSOLVE)
-            mesh.scale.setScalar((1 - easeOutCubic(q)) * mesh.userData.size)
-          })
-          ambientMat.opacity = AMBIENT_DIM_TYPING * (1 - p)
-        } else if (ambientMat.opacity !== 0) {
-          ambientMat.opacity = 0
-          ambientRef.current.forEach((m) => m.scale.setScalar(0))
+            af.setTransform(i, items[i].position, Math.max(0.0001, (1 - easeOutCubic(q)) * items[i].size))
+            af.setFade(i, AMBIENT_FADE_TYPING * (1 - q))
+          }
+          af.commit()
+        } else if (af.mesh.visible) {
+          af.mesh.visible = false
         }
       }
 
-      /* ── Camera pull-back: the space opens to receive the data ── */
-      if (phase === 'dissolving' && !reduced) {
+      /* Camera pull-back: the space opens to receive the data */
+      if (phase === 'dissolving' && !reduced && ctrl && !flight) {
         const p = easeOutQuad(clamp01(t / CAMERA_PULLBACK))
-        const target = cameraDistRef.current * CAMERA_PULLBACK_FACTOR
         const from = cameraDistRef.current
-        const dist = from + (target - from) * p
-        const ctrl = controlsRef.current
-        if (ctrl) {
-          const dir = camera.position.clone().sub(ctrl.target).normalize()
-          camera.position.copy(ctrl.target).addScaledVector(dir, dist)
-        }
+        const to = from * CAMERA_PULLBACK_FACTOR
+        const dir = camera.position.clone().sub(ctrl.target).normalize()
+        camera.position.copy(ctrl.target).addScaledVector(dir, from + (to - from) * p)
         if (t >= Math.max(DISSOLVE, CAMERA_PULLBACK)) {
           phaseRef.current = 'entering'
           phaseStartRef.current = now
         }
       }
 
-      /* ── Real repositories ── */
-      const spheres = spheresRef.current
-      if (spheres.length > 0 && (phase === 'entering' || phase === 'settled')) {
+      /* Real repositories */
+      const field = fieldRef.current
+      const data = dataRef.current
+      if (field && data.length > 0 && (phase === 'entering' || phase === 'settled')) {
         const entering = phase === 'entering'
+        const filter = filterRef.current
+        const dimAll = selectedRef.current ? SELECTED_DIM : 1
         let allIn = true
 
-        for (let i = 0; i < spheres.length; i++) {
-          const mesh = spheres[i]
-          const base = mesh.userData.baseSize
-
-          if (!frustum.containsPoint(mesh.position)) {
-            mesh.visible = false
-            continue
-          }
-          mesh.visible = true
+        for (let i = 0; i < data.length; i++) {
+          const d = data[i]
 
           if (entering && !reduced) {
-            // Stagger is capped: beyond 100 spheres the rest arrive on the
-            // final beat rather than dragging the sequence out.
-            const delay = Math.min(mesh.userData.order, ENTRANCE_STAGGER_CAP) * ENTRANCE_STAGGER
+            const delay = Math.min(d.order, ENTRANCE_STAGGER_CAP) * ENTRANCE_STAGGER
             const p = clamp01((t - delay) / ENTRANCE_GROW)
             if (p < 1) allIn = false
-            // ease-out, no overshoot. The old easeOutBack popped past 1.0.
-            mesh.scale.setScalar(easeOutCubic(p) * base)
-            mesh.material.opacity = p
+            // ease-out, no overshoot. easeOutBack popped past 1.0.
+            field.setTransform(i, d.position, Math.max(0.0001, easeOutCubic(p) * d.baseSize))
+            field.setFade(i, p)
+            d.fade = p
+            labelRef.current?.set(
+              i,
+              d.position,
+              d.code,
+              easeOutCubic(p) * d.baseSize * 0.85,
+              p * 0.9,
+              easeOutCubic(p) * d.baseSize
+            )
             continue
           }
 
           // Language filter. MOTION.md: filtered-out spheres SHRINK to 0.25
-          // and 15% opacity — they never vanish, so the shape of the whole
-          // universe stays legible. Applying it here rather than by filtering
-          // the prop matters: filtering the prop would tear the scene down and
-          // replay the entrance every time the filter changed.
-          const lang = mesh.userData.repo.language
-          const matches =
-            !filterRef.current ||
-            (lang && lang.toLowerCase() === filterRef.current.toLowerCase())
-
-          const targetOpacity = matches ? 1 : 0.15
+          // and 15% — they never vanish, so the shape of the universe stays
+          // legible.
+          const lang = d.repo.language
+          const matches = !filter || (lang && lang.toLowerCase() === filter.toLowerCase())
           const targetFilterScale = matches ? 1 : 0.25
+          const targetFade = (matches ? 1 : 0.15) * dimAll
+
+          const isHovered = hoveredRef.current === i && matches
+          const targetHover = isHovered ? HOVER_SCALE : 1
 
           if (reduced) {
-            mesh.material.opacity = targetOpacity
-            mesh.scale.setScalar(base * targetFilterScale)
-            continue
+            d.filterScale = targetFilterScale
+            d.fade = targetFade
+            d.hoverScale = targetHover
+          } else {
+            // ~300ms to the filter target, ~120ms to the hover target
+            d.filterScale += (targetFilterScale - d.filterScale) * Math.min(1, dt * 8)
+            d.fade += (targetFade - d.fade) * Math.min(1, dt * 8)
+            d.hoverScale += (targetHover - d.hoverScale) * Math.min(1, dt * 16)
           }
 
-          // 300ms to the filter target.
-          mesh.userData.filterScale +=
-            (targetFilterScale - mesh.userData.filterScale) * Math.min(1, dt * 8)
-          mesh.material.opacity +=
-            (targetOpacity - mesh.material.opacity) * Math.min(1, dt * 8)
-
-          // Settled: hover response only. No breathing pulse — a scene that
-          // never stops moving is a scene where hover reads as noise.
-          const isHovered = hoveredRef.current === mesh && matches
-          const target = isHovered ? 1.15 : 1
-          mesh.userData.hoverScale +=
-            (target - mesh.userData.hoverScale) * Math.min(1, dt * 12)
-          mesh.scale.setScalar(
-            base * mesh.userData.hoverScale * mesh.userData.filterScale
+          field.setTransform(
+            i,
+            d.position,
+            Math.max(0.0001, d.baseSize * d.hoverScale * d.filterScale)
           )
+          field.setFade(i, d.fade, isHovered ? 1 : 0)
+        }
 
-          const emissive = isHovered ? 0.6 : 0.28
-          mesh.material.emissive
-            .copy(mesh.material.color)
-            .multiplyScalar(emissive)
+        field.commit()
+
+        // Labels ride the same transforms as the nodes they sit on, and fade
+        // out once a node is too small on screen for the text to be legible.
+        const labels = labelRef.current
+        if (labels) {
+          for (let i = 0; i < data.length; i++) {
+            const d = data[i]
+            const s = d.baseSize * d.hoverScale * d.filterScale
+            // Apparent size in world units per screen pixel: below ~14px the
+            // code turns to mush, so it fades rather than crowding the frame.
+            const distance = camera.position.distanceTo(d.position)
+            const legible = clamp01((s / distance) * 62 - 0.22)
+            labels.set(i, d.position, d.code, s * 1.05, d.fade * legible, s)
+          }
+          labels.commit()
+          labels.mesh.rotation.y = field.mesh.rotation.y
+        }
+
+        const wire = wireRef.current
+        if (wire) {
+          wire.segments.rotation.y = field.mesh.rotation.y
+          wire.setOpacity(0.16 * (selectedRef.current ? SELECTED_DIM : 1))
+        }
+
+        field.mesh.rotation.y += AMBIENT_DRIFT * 0.35 * dt * driftScale
+
+        if (entering) {
+          labelRef.current?.commit()
+          wireRef.current?.setOpacity(0.16 * clamp01(t / 0.8))
         }
 
         if (entering && (allIn || reduced)) {
@@ -390,60 +467,123 @@ export default function Visualizer({
           phaseStartRef.current = now
           onSettled?.()
         }
+      }
 
-        // Ambient drift of the real universe, halved after a long idle.
-        if (!reduced && groupRef.current) {
-          const idle = now - lastInputRef.current > IDLE_AFTER
-          groupRef.current.rotation.y += AMBIENT_DRIFT * 0.35 * dt * (idle ? 0.5 : 1)
+      /* Hover ring */
+      const ring = ringRef.current
+      if (ring) {
+        const i = hoveredRef.current
+        if (field && i >= 0 && data[i]) {
+          const d = data[i]
+          // The field rotates as a group; the ring lives in world space.
+          field.mesh.updateMatrixWorld()
+          const worldPos = d.position.clone().applyMatrix4(field.mesh.matrixWorld)
+          ring.show(worldPos, d.baseSize * d.hoverScale * d.filterScale, camera, d.alive)
+          ring.fade(dt, 1)
+        } else {
+          ring.fade(dt, 0)
         }
       }
 
       renderer.render(scene, camera)
+
+      // Two numbers that prove claims rather than asserting them: the draw
+      // call count (instancing) and a monotonic frame counter (which is how
+      // the tab-hidden pause is verified — a counter that stops advancing).
+      window.__vizDrawCalls = renderer.info.render.calls
+      window.__vizFrames = (window.__vizFrames || 0) + 1
+
+      const work = workTimesRef.current
+      work.push(performance.now() - workStart)
+      if (work.length > 240) work.shift()
     }
 
+    /* Tab hidden: stop rendering entirely. The loop used to run forever in a
+       background tab, burning a core for a scene nobody could see. */
+    const onVisibility = () => {
+      if (document.hidden) {
+        running = false
+        if (raf) cancelAnimationFrame(raf)
+        raf = null
+      } else if (!running) {
+        running = true
+        lastFrame = performance.now() / 1000
+        animate()
+      }
+    }
+
+    document.addEventListener('visibilitychange', onVisibility)
     animate()
-    return () => cancelAnimationFrame(raf)
+
+    return () => {
+      running = false
+      document.removeEventListener('visibilitychange', onVisibility)
+      if (raf) cancelAnimationFrame(raf)
+    }
   }, [scene, renderer, camera, onSettled])
 
-  /* ── Typing dims the demo galaxy ──────────────────────────────────────── */
+  /* ── Frame stats ─────────────────────────────────────────────────────── */
 
   useEffect(() => {
-    if (!isTyping) return
-    if (phaseRef.current === 'ambient') {
-      phaseRef.current = 'dimming'
-      // Keep the clock so spheres that are still growing carry on growing.
-    }
+    if (!onFrameStats) return
+    const id = setInterval(() => {
+      const times = [...frameTimesRef.current].sort((a, b) => a - b)
+      const work = [...workTimesRef.current].sort((a, b) => a - b)
+      if (times.length < 30) return
+      const q = (arr, p) => arr[Math.min(arr.length - 1, Math.floor(arr.length * p))]
+      onFrameStats({
+        samples: times.length,
+        median: q(times, 0.5),
+        p95: q(times, 0.95),
+        worst: times[times.length - 1],
+        workMedian: work.length ? q(work, 0.5) : null,
+        workP95: work.length ? q(work, 0.95) : null
+      })
+    }, 1000)
+    return () => clearInterval(id)
+  }, [onFrameStats])
+
+  /* ── Typing dims the demo galaxy ─────────────────────────────────────── */
+
+  useEffect(() => {
+    if (isTyping && phaseRef.current === 'ambient') phaseRef.current = 'dimming'
   }, [isTyping])
 
-  /* ── Interaction ──────────────────────────────────────────────────────── */
+  /* ── Picking ─────────────────────────────────────────────────────────── */
 
   const pick = useCallback(
     (clientX, clientY) => {
-      if (!camera) return null
+      const field = fieldRef.current
+      if (!camera || !field) return -1
       mouseRef.current.x = (clientX / window.innerWidth) * 2 - 1
       mouseRef.current.y = -(clientY / window.innerHeight) * 2 + 1
       raycasterRef.current.setFromCamera(mouseRef.current, camera)
-      // Filtered-out spheres are still on screen at 25% — they must not be
+      const hits = raycasterRef.current.intersectObject(field.mesh)
+      if (hits.length === 0) return -1
+
+      const i = hits[0].instanceId
+      const d = dataRef.current[i]
+      if (!d) return -1
+
+      // Filtered-out spheres are still on screen at 25%. They must not be
       // pickable, or hover would report a repository the filter excluded.
       const f = filterRef.current
-      const pickable = spheresRef.current.filter((m) => {
-        if (!m.visible) return false
-        if (!f) return true
-        const lang = m.userData.repo.language
-        return lang && lang.toLowerCase() === f.toLowerCase()
-      })
-      const hits = raycasterRef.current.intersectObjects(pickable)
-      return hits.length > 0 ? hits[0].object : null
+      if (f) {
+        const lang = d.repo.language
+        if (!lang || lang.toLowerCase() !== f.toLowerCase()) return -1
+      }
+      return i
     },
     [camera]
   )
+
+  /* ── Interaction ─────────────────────────────────────────────────────── */
 
   useEffect(() => {
     const el = containerRef.current
     if (!el) return
 
     let moveTimer = null
-
     const noteInput = () => {
       lastInputRef.current = performance.now() / 1000
     }
@@ -452,49 +592,51 @@ export default function Visualizer({
       noteInput()
       clearTimeout(moveTimer)
       moveTimer = setTimeout(() => {
-        const mesh = pick(e.clientX, e.clientY)
-        hoveredRef.current = mesh
-        document.body.style.cursor = mesh ? 'pointer' : 'default'
-        setHovered(mesh ? mesh.userData.repo : null)
+        const i = pick(e.clientX, e.clientY)
+        hoveredRef.current = i
+        document.body.style.cursor = i >= 0 ? 'pointer' : 'default'
+        setHovered(i >= 0 ? dataRef.current[i].repo : null)
       }, 40)
     }
 
     const onLeave = () => {
       clearTimeout(moveTimer)
-      hoveredRef.current = null
+      hoveredRef.current = -1
       document.body.style.cursor = 'default'
       setHovered(null)
     }
 
     const onClick = (e) => {
       noteInput()
-      const mesh = pick(e.clientX, e.clientY)
-      if (mesh) onRepoClick(mesh.userData)
+      const i = pick(e.clientX, e.clientY)
+      if (i >= 0) onRepoClick({ repo: dataRef.current[i].repo })
     }
 
     let pinchStart = 0
     const onTouchStart = (e) => {
       noteInput()
       if (e.touches.length === 2) {
-        const dx = e.touches[0].clientX - e.touches[1].clientX
-        const dy = e.touches[0].clientY - e.touches[1].clientY
-        pinchStart = Math.hypot(dx, dy)
+        pinchStart = Math.hypot(
+          e.touches[0].clientX - e.touches[1].clientX,
+          e.touches[0].clientY - e.touches[1].clientY
+        )
       }
     }
     const onTouchMove = (e) => {
       noteInput()
-      if (e.touches.length !== 2 || !controlsRef.current) return
-      const dx = e.touches[0].clientX - e.touches[1].clientX
-      const dy = e.touches[0].clientY - e.touches[1].clientY
-      const d = Math.hypot(dx, dy)
+      if (e.touches.length !== 2 || !camera) return
+      const d = Math.hypot(
+        e.touches[0].clientX - e.touches[1].clientX,
+        e.touches[0].clientY - e.touches[1].clientY
+      )
       camera.position.multiplyScalar(1 - (d - pinchStart) * 0.001)
       pinchStart = d
     }
     const onTouchEnd = (e) => {
       if (e.touches.length !== 0) return
       const touch = e.changedTouches[0]
-      const mesh = pick(touch.clientX, touch.clientY)
-      if (mesh) onRepoClick(mesh.userData)
+      const i = pick(touch.clientX, touch.clientY)
+      if (i >= 0) onRepoClick({ repo: dataRef.current[i].repo })
     }
 
     el.addEventListener('mousemove', onMove)
@@ -519,7 +661,7 @@ export default function Visualizer({
     }
   }, [pick, onRepoClick, camera])
 
-  /* ── Keyboard ─────────────────────────────────────────────────────────── */
+  /* ── Keyboard ────────────────────────────────────────────────────────── */
 
   useEffect(() => {
     const onKeyDown = (e) => {
@@ -527,15 +669,13 @@ export default function Visualizer({
       if (tag === 'INPUT' || tag === 'TEXTAREA') return
       lastInputRef.current = performance.now() / 1000
 
-      const list = spheresRef.current
-      if (e.key === 'Tab' && list.length > 0) {
+      const data = dataRef.current
+      if (e.key === 'Tab' && data.length > 0) {
         e.preventDefault()
         const step = e.shiftKey ? -1 : 1
-        currentIndexRef.current =
-          (currentIndexRef.current + step + list.length) % list.length
-        onRepoClick(list[currentIndexRef.current].userData)
+        currentIndexRef.current = (currentIndexRef.current + step + data.length) % data.length
+        onRepoClick({ repo: data[currentIndexRef.current].repo })
       }
-
       if ((e.key === '+' || e.key === '=') && camera) {
         e.preventDefault()
         camera.position.multiplyScalar(0.9)
@@ -545,29 +685,18 @@ export default function Visualizer({
         camera.position.multiplyScalar(1.1)
       }
     }
-
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
   }, [onRepoClick, camera])
 
-  /* ── Helpers ──────────────────────────────────────────────────────────── */
+  /* ── Camera framing ──────────────────────────────────────────────────── */
 
-  /**
-   * Frame the universe.
-   *
-   * The old code set only `camera.position.z` and left x/y at 0, then looked
-   * at a bounding-box centre that is rarely the origin — an off-axis view
-   * that projected the cluster into a corner. It also measured the bounding
-   * box while every mesh was still scaled to 0, so the box bounded points
-   * rather than spheres and the fit came out consistently too tight.
-   */
   /**
    * Frame the ambient galaxy.
    *
-   * The generator builds a thick disc in the x/z plane. Viewed from the
-   * default camera — straight down -z — that projects to a thin horizontal
-   * band about 13% of the viewport tall. Lifting the camera above the plane
-   * and looking down at it is what makes it read as a galaxy.
+   * The generator builds a thick disc. Viewed straight down its own axis that
+   * projects to a thin band, so the camera sits above the plane and looks
+   * down at it.
    */
   function frameAmbient(cam) {
     const RADIUS = 34
@@ -575,18 +704,14 @@ export default function Visualizer({
     const portrait = cam.aspect < 1
     const fov = (cam.fov * Math.PI) / 180
 
-    // On a tall viewport a shallow tilt collapses the disc into a thin band,
-    // so look further down on to it — the projection becomes round rather
-    // than a stripe.
-    const tilt = portrait ? 0.95 : 0.42 // ~54deg portrait, ~24deg landscape
+    // A shallow tilt collapses the disc into a stripe on a tall viewport, so
+    // portrait looks further down on to it.
+    const tilt = portrait ? 0.95 : 0.42
 
-    // Frame by the PROJECTED extent, not the radius. Seen from 24 degrees
-    // above, a disc of radius 34 is only ~14 units tall on screen; framing by
-    // the radius left it filling a third of the viewport.
     const projectedHalfHeight = RADIUS * Math.sin(tilt) + THICKNESS / 2
     const fitH = projectedHalfHeight / (portrait ? 0.62 : 0.52) / Math.tan(fov / 2)
-    // Portrait deliberately crops the galaxy's width. A galaxy running past
-    // the edges reads better than a small one floating in the middle.
+    // Portrait deliberately crops width: a galaxy running past the edges reads
+    // better than a small one floating in the middle.
     const fitW = RADIUS / (portrait ? 1.4 : 0.6) / Math.tan(fov / 2) / cam.aspect
     const dist = Math.max(fitH, fitW)
 
@@ -596,55 +721,61 @@ export default function Visualizer({
     cam.far = dist * 8
     cam.updateProjectionMatrix()
     cameraDistRef.current = dist
+    if (controlsRef.current) controlsRef.current.target.set(0, 0, 0)
   }
 
-  function frameCamera(group, cam, rend, controls) {
+  /**
+   * Frame the universe.
+   *
+   * Two bugs lived here. The old code set only `camera.position.z` and left
+   * x/y at 0, then looked at a bounding-box centre it was not aligned with —
+   * an off-axis projection that pushed the cluster into a corner. And it used
+   *   dist = max(fitHeight, fitWidth, size.z)
+   * which compares a DEPTH extent against fit DISTANCES; depth won every time
+   * and parked the camera twice as far back as framing needed.
+   */
+  function frameCamera(cam, rend) {
     const box = new THREE.Box3()
     const v = new THREE.Vector3()
 
-    group.children.forEach((mesh) => {
-      const r = mesh.userData.baseSize || 1
-      box.expandByPoint(v.copy(mesh.position).addScalar(r))
-      box.expandByPoint(v.copy(mesh.position).subScalar(r))
-    })
+    for (const d of dataRef.current) {
+      box.expandByPoint(v.copy(d.position).addScalar(d.baseSize))
+      box.expandByPoint(v.copy(d.position).subScalar(d.baseSize))
+    }
 
     const center = box.getCenter(new THREE.Vector3())
     const size = box.getSize(new THREE.Vector3())
 
     const fov = (cam.fov * Math.PI) / 180
-    const fitHeight = size.y / 2 / Math.tan(fov / 2)
-    const fitWidth = size.x / 2 / Math.tan(fov / 2) / cam.aspect
+    const halfTan = Math.tan(fov / 2)
 
-    // Depth is NOT a fitting distance. The previous form was
-    //   max(fitHeight, fitWidth, size.z) * 1.25
-    // which compared a 68-unit depth extent against ~30-unit fit distances and
-    // won every time, parking the camera more than twice as far back as the
-    // framing needed and leaving the universe as a small clump in the middle.
-    //
-    // Fit the cluster's cross-section, then make sure the camera is clear of
-    // its depth so the near spheres are not inside the near plane.
-    const fit = Math.max(fitHeight, fitWidth) * 1.15
-    const dist = Math.max(fit, size.z * 0.7)
+    // Frame the NEAR face of the cloud, not its centre plane. Framing the
+    // centre leaves the nearest spheres far closer to the camera than the fit
+    // assumed, so they balloon and spill past the edges — which is exactly
+    // what a depth-unaware fit produced here.
+    const pad = 1.06
+    const fitHeight = (size.y * pad) / 2 / halfTan
+    const fitWidth = (size.x * pad) / 2 / halfTan / cam.aspect
+    const dist = size.z / 2 + Math.max(fitHeight, fitWidth)
 
     cameraDistRef.current = dist
 
-    // Position RELATIVE to the centre, so the view is on-axis.
     cam.position.set(center.x, center.y, center.z + dist)
     cam.near = Math.max(0.1, dist / 500)
     cam.far = dist * 12
     cam.updateProjectionMatrix()
 
-    controls.current?.dispose()
+    controlsRef.current?.dispose()
     const ctrl = new OrbitControls(cam, rend.domElement)
     ctrl.enableDamping = true
     ctrl.dampingFactor = 0.06
     ctrl.autoRotate = false // drift is driven by the render loop, per MOTION.md
     ctrl.target.copy(center)
     ctrl.update()
-    controls.current = ctrl
+    controlsRef.current = ctrl
   }
 
-  /* ── Render ───────────────────────────────────────────────────────────── */
+  /* ── Render ──────────────────────────────────────────────────────────── */
 
   return (
     <>

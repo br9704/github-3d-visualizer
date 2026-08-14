@@ -5,7 +5,7 @@
 Status keys, marked live as work happens — never batched:
 `[ ]` not started · `[~]` in progress · `[x]` complete · `[⏭]` deferred (always with a one-line reason)
 
-**Current sprint pointer:** S4
+**Current sprint pointer:** S5
 
 ---
 
@@ -178,18 +178,47 @@ Deliberately before new scene code, so the ambient galaxy is written once agains
 
 ---
 
-## S4 — Ambient galaxy + entrance motion `[ ]`
+## S4 — Ambient galaxy + entrance motion `[x]`
 
 Implements `MOTION.md` § "The empty state IS the hero" and § "Search → universe". Motion here is product behaviour, not polish.
 
-- [ ] Seeded procedural generator → 60–80 placeholder spheres. No API call; works offline; never rate-limits.
-- [ ] Timeline as specced: 0–400ms background fade + 1px grid to 8%; 400ms spheres stream in over ~1.2s, 15ms apart, centre outward; 1.6s+ drift at 0.03 rad/s.
-- [ ] Demo galaxy at 50% dim, unlabeled → 25% on first keystroke → dissolves over 400ms, staggered, on successful search.
-- [ ] Entrance: camera pulls back 15% over 600ms ease-out; real spheres stream in largest-first, 25ms apart, **growing at final coordinates — they do not fly**; stagger capped at 100, remainder instantiated on the final beat.
-- [ ] Replace `easeOutBack` (`Visualizer.jsx:12`) — the system forbids bounce and `MOTION.md` says "overshooting by nothing".
-- [ ] Settle: typed HUD line `> N repos · N stars · rendered in N.Ns` from **measured** values only.
+- [x] Seeded procedural generator → **88** placeholder spheres (`src/scene/ambientGalaxy.js`). No API call; works offline; never rate-limits.
+- [x] Timeline as specced: 1px grid at 8%; spheres stream in 15ms apart, centre outward; drift at 0.03 rad/s.
+- [x] Demo galaxy at 50% dim, **uncoloured** → 25% on first keystroke → dissolves over 400ms, staggered, on successful search.
+- [x] Entrance: camera pulls back 15% over 600ms ease-out; real spheres stream in largest-first, 25ms apart, **growing at final coordinates**; stagger capped at 100.
+- [x] `easeOutBack` replaced with `src/scene/easing.js` — ease-out and linear only.
+- [x] Settle: typed HUD line `N repos · N stars · N.Ns` from **measured** values (`useTypedText`, 40ms/char, whole under reduced motion).
 
-**Acceptance (MOTION.md checklist):** cold load with no input is styled, branded and moving within 2s, screenshot-worthy at every moment after; 404 and rate-limit paths recorded as instant text with no dead loader; `prefers-reduced-motion` → instant placement, no drift, everything still readable.
+**Acceptance (MOTION.md checklist):** ✅ all nine checks automated in `scripts/motion-check.mjs` and green.
+
+| Check | Result |
+|---|---|
+| Cold load renders a scene within 2s, no input | ✅ 17,831 bright samples |
+| The cold-load scene is moving | ✅ signatures 900ms apart differ |
+| 404 prints text | ✅ `user not found` |
+| 404 leaves no dead loader | ✅ |
+| Rate limit prints text | ✅ `rate limited — try again in 4m` |
+| Rate limit reports the actual wait | ✅ |
+| Reduced motion places instantly | ✅ 19,062 samples at 400ms |
+| Reduced motion does not drift | ✅ frames 1.4s apart identical |
+| Reduced motion keeps data readable | ✅ `100 repos · 1.2m stars · 0.6s` |
+
+**As-shipped delta:**
+
+- **The ambient galaxy is deliberately uncoloured.** Language colour carries meaning in this app; scenery must not borrow it. It uses `--text-secondary` at 50%.
+- **Camera framing was wrong in two independent ways**, which is why the universe kept appearing as a small clump in a corner:
+  1. Only `camera.position.z` was set while x/y stayed at 0, so the camera looked at a bounding-box centre it was not aligned with — an off-axis projection.
+  2. `dist = max(fitHeight, fitWidth, size.z)` compared a **68-unit depth extent** against ~30-unit fit *distances*. Depth won every time, parking the camera more than twice as far back as framing required.
+- **Portrait needed its own framing.** A shallow tilt collapses a disc into a stripe on a tall viewport, so portrait looks further down on to it (54° vs 24°) and deliberately crops the width — a galaxy running past the edges reads better than a small one floating in the middle.
+- **Language filtering moved into the render loop.** Filtering the prop (as S2 left it) would tear the scene down and replay the entrance on every filter change. Now non-matching spheres shrink to 0.25 / 15% per MOTION.md, and are excluded from picking so hover cannot report a repository the filter excluded.
+- **API errors now speak the terminal voice** — `user not found`, `rate limited — try again in 4m`.
+- **Two findings from building the acceptance harness:**
+  - A WebGL canvas **cannot be read back with `drawImage`** — without `preserveDrawingBuffer` the drawing buffer is cleared after compositing, so the first version of the checks measured zero every time. They compare page screenshots instead.
+  - **`x-ratelimit-reset` is not a CORS-safelisted header.** A mock that omits `access-control-expose-headers` makes the "try again in 4m" path untestable *and silently wrong* — the message quietly degrades to "try again later". Real GitHub exposes it; the mock now does too.
+- The mobile bottom sheet is auto-height on the empty state; a fixed 46vh sheet holding one collapsed module was just dead black space.
+- Commit `df85740`.
+
+**Deferred to S5 as planned:** instancing, click-to-camera-flight, heatmap cross-fade, tab-hidden render pause, and the measured p95 frame time.
 
 ---
 

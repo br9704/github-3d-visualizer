@@ -67,6 +67,12 @@ function App() {
       measured settle time rather than an estimate. */
   const handleSettled = useCallback(() => {}, [])
 
+  /** Measured frame times from the render loop. Exposed on window so the perf
+      harness (scripts/perf.mjs) can read them without a dev-only build. */
+  const handleFrameStats = useCallback((stats) => {
+    window.__vizFrameStats = stats
+  }, [])
+
   /** Store user data for pagination */
   const userDataRef = useRef({})
 
@@ -325,8 +331,10 @@ function App() {
           repos={positionedRepos}
           filteredLanguage={filteredLanguage}
           onRepoClick={handleRepoClick}
+          selectedRepo={selectedRepo}
           isTyping={isTyping}
           onSettled={handleSettled}
+          onFrameStats={handleFrameStats}
         />
       </div>
 

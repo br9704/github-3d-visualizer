@@ -51,7 +51,11 @@ export function useThreeScene(containerRef) {
 
       // STEP 4: Create camera
       const camera = new THREE.PerspectiveCamera(
-        75,                    // FOV
+        // 45deg, not 75. A wide lens exaggerates depth distortion badly here:
+        // spheres near the frame edge rendered as visible ovals, and the
+        // nearest ones dominated everything behind them. 45 is the flatter,
+        // more instrument-like read a data visualisation wants.
+        45,                    // FOV
         width / height || 1,   // Aspect ratio (guard division by zero)
         0.1,                   // Near plane
         10000                  // Far plane

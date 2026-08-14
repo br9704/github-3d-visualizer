@@ -209,6 +209,79 @@ async function newPage({ reduced = false, route } = {}) {
   await ctx.close();
 }
 
+/* ── 5. Instancing: one draw call, not one per repository ───────────────── */
+/* ── 6. Tab hidden: the render loop stops ───────────────────────────────── */
+{
+  const repos = makeRepos(150);
+  const user = makeUser('fixture', 150);
+  const { ctx, page } = await newPage({
+    route: (r) => {
+      const url = r.request().url();
+      const json = (b) =>
+        r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(b) });
+      if (/\/readme/.test(url))
+        return r.fulfill({ status: 200, contentType: 'text/plain', body: README_TEXT });
+      if (/\/users\/[^/]+\/repos/.test(url)) return json(repos);
+      if (/\/search\/users/.test(url)) return json({ items: [] });
+      if (/\/users\//.test(url)) return json(user);
+      return json({});
+    }
+  });
+  await page.goto(BASE, { waitUntil: 'networkidle' });
+  await page.fill('input[aria-label="GitHub username"]', 'fixture');
+  await page.keyboard.press('Enter');
+  await page.waitForTimeout(6000);
+
+  const drawCalls = await page.evaluate(() => window.__vizDrawCalls);
+  // Four passes, not one per repository: solid nodes, wireframe shells,
+  // language labels, hover ring. The point of the check is that the count is
+  // CONSTANT in the number of repositories — 150 repos used to mean 150 draw
+  // calls and 150 compiled materials.
+  record(
+    'draw calls are constant, not one per repository',
+    drawCalls != null && drawCalls <= 6,
+    `${drawCalls} draw call(s) for 150 repositories`
+  );
+
+  // Hiding the tab must stop the loop entirely. It used to run forever,
+  // burning a core for a scene nobody could see. Verified with a monotonic
+  // frame counter: if the loop is paused, it stops advancing.
+  await page.evaluate(() => {
+    Object.defineProperty(document, 'hidden', { value: true, configurable: true });
+    Object.defineProperty(document, 'visibilityState', { value: 'hidden', configurable: true });
+    document.dispatchEvent(new Event('visibilitychange'));
+  });
+  await page.waitForTimeout(400); // let any in-flight frame land
+  const framesAtHide = await page.evaluate(() => window.__vizFrames);
+  await page.waitForTimeout(1200);
+  const framesLater = await page.evaluate(() => window.__vizFrames);
+  const stalled = { paused: framesLater === framesAtHide, framesAtHide, framesLater };
+
+  // Restore, and confirm the loop resumes.
+  await page.evaluate(() => {
+    Object.defineProperty(document, 'hidden', { value: false, configurable: true });
+    Object.defineProperty(document, 'visibilityState', { value: 'visible', configurable: true });
+    document.dispatchEvent(new Event('visibilitychange'));
+  });
+  await page.waitForTimeout(600);
+  const resumedSig = await sceneSignature(page);
+  await page.waitForTimeout(700);
+  const resumedSig2 = await sceneSignature(page);
+
+  record(
+    'hiding the tab pauses the render loop',
+    stalled.paused,
+    `frame counter held at ${stalled.framesAtHide} across 1.2s hidden`
+  );
+  record(
+    'showing the tab resumes the render loop',
+    resumedSig.hash !== resumedSig2.hash,
+    'frames differ again after the tab is shown'
+  );
+
+  await ctx.close();
+}
+
 await browser.close();
 
 const failed = results.filter((r) => !r.pass);

@@ -15,18 +15,19 @@ Any GitHub profile rendered as a 3D universe. Each repository becomes an icosahe
 Everything listed here is implemented in `src/`. Nothing is listed that the code does not do.
 
 ### Core visualisation
-- **3D sphere rendering** — each repo is a `THREE.IcosahedronGeometry` mesh in WebGL space
-- **Dynamic sizing** — `size = clamp(√stars / 10, 0.3, 4)` (`src/utils/positioning.js`)
+- **Node rendering** — each repo is a geodesic icosahedron with a hairline wireframe shell and a billboarded monospace language code (`JS`, `PY`, `RS`, …)
+- **Dynamic sizing** — `size = clamp(√stars / 12, 0.35, 3.2)` (`src/utils/positioning.js`)
 - **Language colours** — 17 language-specific colours, grey fallback for the rest (`src/utils/colors.js`)
-- **3-axis positioning** — X = repo age, Y = stars, Z = fork count (`src/utils/positioning.js`)
+- **3-axis positioning** — X = repo age, Y = stars, Z = fork count, each mapped by **rank** rather than linearly, because stars and forks are power-law distributed and a linear map collapses almost every repo onto the same coordinate. A deterministic relaxation pass then separates any nodes that still overlap.
 - **Auto-rotation** — orbital camera with damping via `OrbitControls`
 
 ### Interaction
 - **Click to explore** — repository detail panel with a README preview (first 500 characters)
-- **Hover tooltips** — name, language, truncated description, star count
+- **Hover readout** — a fixed HUD slot (not a tooltip chasing the cursor), plus a ring around the node; the ring is green only when the repo was pushed within 30 days
 - **Keyboard** — `Tab` / `Shift+Tab` cycle repos, `+` / `-` zoom, `?` or `/` opens help, `Escape` closes
 - **Touch** — pinch to zoom, drag to orbit, tap to select
-- **Entrance animation** — spheres scale in with a staggered cascade
+- **Entrance animation** — nodes grow at their final coordinates, largest first, 25 ms apart
+- **Ambient galaxy** — a seeded 88-node placeholder field renders on cold load with no API call, so the empty state is never blank
 
 ### Search and filtering
 - **GitHub username search** — up to 300 repos (3 pages of 100)
@@ -63,15 +64,27 @@ Local-only. There is no server and no real-time sync — state is shared by copy
 - **Keyboard help** — press `?`
 - **Keyboard navigation** — `j`/`k` move between control modules, `↵` opens one
 
-### Performance techniques
-Implemented; not yet independently profiled. See [Roadmap](#roadmap) — a measured frame-time figure replaces this section once it exists.
+### Performance
+Measured, not asserted. Raw numbers in [`docs/perf.json`](docs/perf.json), produced by `npm run perf`.
 
-- **Frustum culling** — off-screen spheres are skipped in the render loop
-- **LOD scaling** — geometry detail `4` under 50 repos, `2` from 50–150, `1` above 150
-- **One shared geometry** — a single unit-radius icosahedron instanced by per-mesh scale, not one geometry per size
-- **Pre-allocated `Frustum` and `Matrix4`** — reused every frame instead of allocated per frame
+| Repositories | Frame work (median) | Frame work (p95) | Draw calls |
+|---|---|---|---|
+| 100 | 0.1 ms | 0.2 ms | 3 |
+| 250 | 0.2 ms | 0.2 ms | 3 |
+
+Measured on an **Apple M4 Pro** at 1440×900 in a GPU-backed Chromium window, 240 samples per run.
+
+"Frame work" is the time spent inside the render loop. It is quoted instead of frames-per-second because on this hardware the frame *interval* is pinned by the display, so an fps figure would measure the monitor rather than the app. A 60 fps budget is 16.7 ms per frame; this uses **0.2 ms of it at 250 repositories**, so frame rate is not the limiting factor on this machine.
+
+`docs/perf.json` also records a software-rasteriser run (headless Chromium, no GPU, SwiftShader) at ~53–62 ms per frame. That is a floor for a machine with no GPU acceleration at all, not a desktop figure.
+
+**Techniques**
+- **One `InstancedMesh` for every repository** — draw calls stay constant as repository count grows, instead of one draw call and one cloned material per repo
+- **LOD scaling** — icosahedron detail `3` under 50 repos, `2` from 50–150, `1` above 150
+- **Render loop pauses when the tab is hidden** — verified by a frame counter that stops advancing
+- **Idle slowdown** — drift halves after 60 s without input
 - **Shadow maps disabled** — nothing in the scene casts or receives shadows
-- **Debounced raycasting** — 50 ms debounce on hover detection
+- **Debounced raycasting** — 40 ms debounce on hover detection
 - **localStorage response cache** — 30-minute TTL
 
 ---
@@ -215,7 +228,6 @@ Tracked in [`masterplan.md`](masterplan.md).
 - Real screenshots and a recording of the entrance sequence
 - A test suite and CI — **there are currently no tests in this repository**
 - Three.js code-splitting to get the initial chunk under 500 kB
-- A measured frame-time figure at 100+ repositories
 
 ---
 

@@ -24,6 +24,48 @@ const languageColors = {
 }
 
 /**
+ * Short monospace codes, used as the billboarded label on each node.
+ *
+ * Two or three characters, because the label has to stay readable at the size
+ * a mid-sized node occupies on screen. This is the SIGNAL way to do an icon:
+ * a monospace glyph, not a pictogram.
+ */
+const languageCodes = {
+  javascript: 'JS',
+  python: 'PY',
+  typescript: 'TS',
+  java: 'JV',
+  cpp: 'C++',
+  csharp: 'C#',
+  go: 'GO',
+  rust: 'RS',
+  swift: 'SW',
+  kotlin: 'KT',
+  ruby: 'RB',
+  php: 'PHP',
+  c: 'C',
+  groovy: 'GR',
+  scala: 'SC',
+  html: 'HT',
+  css: 'CSS'
+}
+
+/**
+ * @param {string|null} language
+ * @returns {string} 1-3 character code, '**' for anything unmapped
+ */
+export function getLanguageCode(language) {
+  if (!language) return '**'
+  const key = language.toLowerCase().replace(/\s+/g, '')
+  return languageCodes[key] || language.slice(0, 2).toUpperCase()
+}
+
+/** Every distinct code that can appear, for building the label atlas. */
+export function getAllLanguageCodes() {
+  return [...new Set([...Object.values(languageCodes), '**'])]
+}
+
+/**
  * Get the color and display name for a programming language.
  * Returns grey (#888888) with name "Other" for unknown or null languages.
  *

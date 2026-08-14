@@ -1,3 +1,4 @@
+import { useTypedText } from '../hooks/useTypedText'
 import '../styles/StatsDisplay.css'
 
 /**
@@ -23,6 +24,21 @@ export default function StatsDisplay({
   starCount,
   renderMs
 }) {
+  // MOTION.md settle line: "> N repos · N stars · rendered in N.Ns" — real
+  // numbers, measured. Typed once, so it lands as a readout rather than a
+  // value that silently appears.
+  const settleLine =
+    !loading && !error && repoCount > 0
+      ? [
+          `${repoCount.toLocaleString()} repos`,
+          typeof starCount === 'number' ? `${formatCount(starCount)} stars` : null,
+          typeof renderMs === 'number' ? `${(renderMs / 1000).toFixed(1)}s` : null
+        ]
+          .filter(Boolean)
+          .join(' · ')
+      : ''
+  const typed = useTypedText(settleLine, 24)
+
   if (!username) return null
 
   return (
@@ -42,21 +58,7 @@ export default function StatsDisplay({
       )}
 
       {!loading && !error && repoCount > 0 && (
-        <p className="stats-line sig-data">
-          <span className="sig-key">{repoCount.toLocaleString()}</span> repos
-          {typeof starCount === 'number' && (
-            <>
-              {' · '}
-              <span className="sig-key">{formatCount(starCount)}</span> stars
-            </>
-          )}
-          {typeof renderMs === 'number' && (
-            <>
-              {' · '}
-              {(renderMs / 1000).toFixed(1)}s
-            </>
-          )}
-        </p>
+        <p className="stats-line sig-data">{typed}</p>
       )}
     </div>
   )

@@ -41,13 +41,16 @@
   z-index: var(--z-scene);
   pointer-events: none;
   opacity: 0;
+  /* Lines are full warm-white; the 8% comes from the element's opacity, per
+     MOTION.md. Drawing them in --hairline instead made the grid a three-level
+     delta over --bg, i.e. invisible. */
   background-image: linear-gradient(
       to right,
-      var(--hairline) var(--hair),
+      var(--text-primary) var(--hair),
       transparent var(--hair)
     ),
-    linear-gradient(to bottom, var(--hairline) var(--hair), transparent var(--hair));
-  background-size: 64px 64px;
+    linear-gradient(to bottom, var(--text-primary) var(--hair), transparent var(--hair));
+  background-size: 72px 72px;
   transition: opacity var(--t-slow) linear;
 }
 

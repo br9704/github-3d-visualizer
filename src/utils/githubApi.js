@@ -14,7 +14,7 @@ const axiosInstance = axios.create({
  */
 export async function fetchUserRepos(username, maxRepos = 100) {
   if (!username?.trim()) {
-    throw new Error('Username is required')
+    throw new Error('username required')
   }
 
   try {
@@ -72,7 +72,7 @@ export async function fetchUserRepos(username, maxRepos = 100) {
     }
   } catch (error) {
     if (error.response?.status === 404) {
-      throw new Error('GitHub user not found')
+      throw new Error('user not found')
     }
     if (error.response?.status === 403 || error.response?.status === 429) {
       const reset = error.response.headers['x-ratelimit-reset']
@@ -82,13 +82,15 @@ export async function fetchUserRepos(username, maxRepos = 100) {
         ? Math.ceil((resetDate - Date.now()) / 60000)
         : null
       throw new Error(
-        `GitHub API rate limit exceeded. ${minutesUntilReset ? `Reset in ${minutesUntilReset} minutes.` : 'Try again later.'}`
+        minutesUntilReset
+          ? `rate limited — try again in ${minutesUntilReset}m`
+          : 'rate limited — try again later'
       )
     }
     if (error.code === 'ECONNABORTED') {
-      throw new Error('Request timeout (8s). Check your connection.')
+      throw new Error('request timed out — check your connection')
     }
-    throw new Error(error.message || 'Failed to fetch repositories')
+    throw new Error(error.message || 'could not reach github')
   }
 }
 

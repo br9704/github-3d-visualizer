@@ -117,7 +117,10 @@ for (const vp of VIEWPORTS) {
   page.on('pageerror', (e) => errors.push(`PAGEERROR: ${e.message}`));
 
   await page.goto(BASE, { waitUntil: 'networkidle' }).catch(() => {});
-  await page.waitForTimeout(1200);
+  // MOTION.md: "cold load with no input: styled, branded, moving scene within
+  // 2s". The ambient entrance is 88 spheres x 15ms stagger + 500ms grow, so
+  // 2000ms is the bar being checked, not an arbitrary wait.
+  await page.waitForTimeout(Number(arg('empty-settle', '2000')));
 
   // 1 — empty state, the view most visitors will only ever see
   const empty = path.join(OUT, `${TAG}-${vp.name}-empty.png`);

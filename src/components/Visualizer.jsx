@@ -1,525 +1,650 @@
-import { useEffect, useRef, useState, useCallback, useMemo } from 'react'
+import { useEffect, useRef, useState, useCallback } from 'react'
 import * as THREE from 'three'
 // three ships OrbitControls itself; three-stdlib was a second copy of it.
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
 import { useThreeScene } from '../hooks/useThreeScene'
 import { getLanguageInfo } from '../utils/colors'
+import { generateAmbientGalaxy } from '../scene/ambientGalaxy'
+import { easeOutCubic, easeOutQuad, clamp01 } from '../scene/easing'
 import '../styles/Tooltip.css'
 
 /**
- * easeOutBack easing for entrance animations
- * Overshoots slightly then settles — gives a satisfying "pop" feel
+ * Visualizer — the scene, and the motion state machine that drives it.
+ *
+ * Implements MOTION.md. The app's original failure was that nothing moved
+ * until a search succeeded, and for most visitors nothing ever did. So the
+ * scene now has something in it from the first frame:
+ *
+ *   ambient   seeded placeholder galaxy, dimmed, drifting. No API call.
+ *   dimming   visitor started typing; the galaxy eases back to 25%
+ *   dissolve  a search succeeded; placeholders scale to 0 over 400ms while
+ *             the camera pulls back 15% — the space "opens" to receive data
+ *   entering  real repositories GROW at their final coordinates, largest
+ *             first, 25ms apart. They do not fly in.
+ *   settled   ambient drift resumes
+ *
+ * prefers-reduced-motion collapses every one of these to instant placement
+ * with no drift, and the scene stays fully readable.
  */
-function easeOutBack(t) {
-  const c1 = 1.70158
-  const c3 = c1 + 1
-  return 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2)
-}
 
-export default function Visualizer({ repos, onRepoClick, detectedLanguages = [] }) {
+/* Timings — all from MOTION.md, in seconds. */
+const AMBIENT_STAGGER = 0.015
+const AMBIENT_GROW = 0.5
+const AMBIENT_DRIFT = 0.03 // rad/s
+const AMBIENT_DIM = 0.5
+const AMBIENT_DIM_TYPING = 0.25
+const DISSOLVE = 0.4
+const CAMERA_PULLBACK = 0.6
+const CAMERA_PULLBACK_FACTOR = 1.15
+const ENTRANCE_STAGGER = 0.025
+const ENTRANCE_GROW = 0.45
+const ENTRANCE_STAGGER_CAP = 100
+const IDLE_AFTER = 60 // seconds untouched before drift halves
+
+// --text-secondary. Bright enough that 50% opacity still reads on #050505;
+// --text-dim was correct as a token but disappeared once dimmed.
+const AMBIENT_COLOR = 0x98928a
+
+export default function Visualizer({
+  repos,
+  onRepoClick,
+  filteredLanguage = null,
+  isTyping = false,
+  onSettled
+}) {
   const containerRef = useRef(null)
-  const { scene, camera, renderer, error: sceneError } = useThreeScene(containerRef)
+  const { scene, camera, renderer, error: sceneError, ready } = useThreeScene(containerRef)
 
+  const groupRef = useRef(null)
+  const ambientGroupRef = useRef(null)
   const spheresRef = useRef([])
-  const visibleSpheresRef = useRef([])
-  const geometriesRef = useRef([])
-  const sphereGroupRef = useRef(null)
-  const raycasterRef = useRef(new THREE.Raycaster())
-  const mouseRef = useRef(new THREE.Vector2())
-  const hoveredSphereRef = useRef(null)
-
-  // Pre-allocate reusable objects for animation loop (avoid GC pressure)
-  const frustumRef = useRef(new THREE.Frustum())
-  const projScreenMatrixRef = useRef(new THREE.Matrix4())
-
-  // Keyboard navigation state
-  const keyStateRef = useRef({})
-  const currentRepoIndexRef = useRef(-1)
-
-  // Tooltip state
-  const [tooltip, setTooltip] = useState(null)
-
-  // Touch state
-  const lastTouchDistanceRef = useRef(0)
-
-  // Filtered language
-  const [filteredLanguage, setFilteredLanguage] = useState(null)
-
-  // Controls reference
+  const ambientRef = useRef([])
+  const geometryRef = useRef(null)
+  const ambientGeometryRef = useRef(null)
+  const ambientMaterialRef = useRef(null)
   const controlsRef = useRef(null)
 
-  // Entrance animation state
-  const entranceStartRef = useRef(null)
-  const entranceCompleteRef = useRef(false)
-  const ENTRANCE_DURATION = 1.5 // seconds
-  const ENTRANCE_STAGGER = 0.02 // seconds between each sphere
+  const raycasterRef = useRef(new THREE.Raycaster())
+  const mouseRef = useRef(new THREE.Vector2())
+  const hoveredRef = useRef(null)
+  const frustumRef = useRef(new THREE.Frustum())
+  const projMatrixRef = useRef(new THREE.Matrix4())
 
-  // Hover animation state
-  const hoverScaleRef = useRef({}) // { sphereIndex: currentScale }
+  const currentIndexRef = useRef(-1)
+  const [hovered, setHovered] = useState(null)
 
-  // Create the debounced hover check ONCE (not per mousemove)
-  const debouncedHoverCheckRef = useRef(null)
+  /** The motion state machine. Refs, not state — the render loop reads it. */
+  const phaseRef = useRef('ambient')
+  const phaseStartRef = useRef(0)
+  const lastInputRef = useRef(0)
+  const cameraDistRef = useRef(80)
+  const reducedMotionRef = useRef(false)
 
-  // Stable debounced hover handler
-  const performHoverCheck = useCallback((event) => {
-    if (!camera || !containerRef.current) return
+  /** The active language filter, read by the render loop. A ref rather than a
+      dep so changing the filter never tears down the loop or the scene. */
+  const filterRef = useRef(filteredLanguage)
+  filterRef.current = filteredLanguage
 
-    raycasterRef.current.setFromCamera(mouseRef.current, camera)
-    const targets = visibleSpheresRef.current.length > 0
-      ? visibleSpheresRef.current
-      : spheresRef.current
-    const intersects = raycasterRef.current.intersectObjects(targets)
+  /* ── Reduced motion ──────────────────────────────────────────────────── */
 
-    // Reset previous hover
-    if (hoveredSphereRef.current) {
-      hoveredSphereRef.current = null
-    }
-
-    if (intersects.length > 0) {
-      const sphere = intersects[0].object
-      const repo = sphere.userData.repo
-      hoveredSphereRef.current = sphere
-      document.body.style.cursor = 'pointer'
-
-      // Smart tooltip positioning — flip if near edges
-      const padding = 20
-      const tooltipWidth = 260
-      const tooltipHeight = 100
-      let x = event.clientX + padding
-      let y = event.clientY - 10
-
-      if (x + tooltipWidth > window.innerWidth) {
-        x = event.clientX - tooltipWidth - padding
-      }
-      if (y + tooltipHeight > window.innerHeight) {
-        y = window.innerHeight - tooltipHeight - padding
-      }
-      if (y < padding) {
-        y = padding
-      }
-
-      setTooltip({
-        x,
-        y,
-        name: repo.name,
-        stars: repo.stargazers_count,
-        language: repo.language || 'Unknown',
-        description: repo.description
-          ? (repo.description.length > 80
-            ? repo.description.slice(0, 80) + '…'
-            : repo.description)
-          : null
-      })
-    } else {
-      document.body.style.cursor = 'default'
-      setTooltip(null)
-    }
-  }, [camera])
-
-  // Create sphere meshes from positioned repos
   useEffect(() => {
-    if (!repos || !scene || repos.length === 0) return
-
-    // CLEANUP: Remove and dispose previous spheres
-    if (sphereGroupRef.current) {
-      sphereGroupRef.current.children.forEach((sphere) => {
-        // Materials are per-sphere (opacity and emissive vary independently),
-        // so each one is disposed here. The geometry is SHARED by every sphere
-        // and is disposed once, via geometriesRef below.
-        sphere.material?.dispose()
-      })
-      scene.remove(sphereGroupRef.current)
+    const mq = window.matchMedia('(prefers-reduced-motion: reduce)')
+    const apply = () => {
+      reducedMotionRef.current = mq.matches
     }
-    sphereGroupRef.current = null
-    geometriesRef.current.forEach((g) => g.dispose())
-    geometriesRef.current = []
-    spheresRef.current = []
+    apply()
+    mq.addEventListener('change', apply)
+    return () => mq.removeEventListener('change', apply)
+  }, [])
 
-    // Reset entrance animation
-    entranceStartRef.current = null
-    entranceCompleteRef.current = false
-    hoverScaleRef.current = {}
+  /* ── Ambient galaxy ───────────────────────────────────────────────────
+     Built once, as soon as the renderer exists. No API call, works offline,
+     never rate-limits. */
 
-    // Create group for all spheres
-    const sphereGroup = new THREE.Group()
-    sphereGroupRef.current = sphereGroup
-    scene.add(sphereGroup)
+  useEffect(() => {
+    if (!scene || !ready) return
 
-    // Determine geometry detail level (LOD) based on repo count
-    const detail = repos.length > 150 ? 1 : repos.length > 50 ? 2 : 4
+    const items = generateAmbientGalaxy()
+    const geometry = new THREE.IcosahedronGeometry(1, 2)
+    ambientGeometryRef.current = geometry
 
-    // ONE unit-radius geometry for every sphere.
-    //
-    // This previously built a geometry at radius `size` AND set the mesh scale
-    // to `size`, so the rendered radius was size SQUARED: a 0.3 repo shrank to
-    // 0.09 (invisible) while a 4.0 repo ballooned to 16 (a screen-filling blob
-    // that swallowed its neighbours). Nobody had seen it because the scene only
-    // renders after a successful search, and headless Chromium has no WebGL, so
-    // every automated check of this project had been looking at an empty canvas.
-    //
-    // Unit geometry + per-mesh scale is also what S5 needs for InstancedMesh.
-    const geometry = new THREE.IcosahedronGeometry(1, detail)
-    geometriesRef.current.push(geometry)
+    // ONE shared material: the ambient spheres always fade together, so they
+    // never need independent opacity. 72 spheres, 1 material.
+    const material = new THREE.MeshPhongMaterial({
+      color: AMBIENT_COLOR,
+      emissive: new THREE.Color(AMBIENT_COLOR).multiplyScalar(0.25),
+      shininess: 20,
+      transparent: true,
+      opacity: 0,
+      depthWrite: false
+    })
+    ambientMaterialRef.current = material
 
-    repos.forEach((repoData, index) => {
-      const { repo, position, size } = repoData
-      const { color } = getLanguageInfo(repo.language)
+    const group = new THREE.Group()
+    ambientGroupRef.current = group
+    scene.add(group)
 
-      // Each sphere gets its OWN material (so opacity/emissive can vary independently)
-      const material = new THREE.MeshPhongMaterial({
-        color: color,
-        emissive: new THREE.Color(color).multiplyScalar(0.3),
-        shininess: 100,
-        side: THREE.FrontSide,
-        wireframe: false,
-        transparent: true,
-        opacity: 0 // Start invisible for entrance animation
-      })
-
-      // Create mesh
-      const sphere = new THREE.Mesh(geometry, material)
-      sphere.position.set(position.x, position.y, position.z)
-      sphere.userData = { repo, index, baseSize: size }
-      sphere.castShadow = false
-      sphere.receiveShadow = false
-
-      // Start at scale 0 for entrance animation
-      sphere.scale.set(0, 0, 0)
-
-      sphereGroup.add(sphere)
-      spheresRef.current.push(sphere)
+    ambientRef.current = items.map((item, i) => {
+      const mesh = new THREE.Mesh(geometry, material)
+      mesh.position.set(item.position.x, item.position.y, item.position.z)
+      mesh.scale.setScalar(reducedMotionRef.current ? item.size : 0)
+      mesh.userData = { size: item.size, order: i }
+      group.add(mesh)
+      return mesh
     })
 
-    // Apply language filter if set
-    updateLanguageFilter(filteredLanguage)
-
-    // Auto-position camera based on sphere spread
-    if (spheresRef.current.length > 0) {
-      const boundingBox = new THREE.Box3().setFromObject(sphereGroup)
-      const size = boundingBox.getSize(new THREE.Vector3())
-      const maxDim = Math.max(size.x, size.y, size.z)
-      const fov = camera.fov * (Math.PI / 180)
-      let cameraZ = Math.abs(maxDim / 2 / Math.tan(fov / 2))
-
-      cameraZ = Math.max(cameraZ, 80)
-      camera.position.z = cameraZ
-
-      const center = boundingBox.getCenter(new THREE.Vector3())
-      camera.lookAt(center)
-
-      // Setup OrbitControls
-      if (controlsRef.current) {
-        controlsRef.current.dispose()
-      }
-      const controls = new OrbitControls(camera, renderer.domElement)
-      controls.autoRotate = true
-      controls.autoRotateSpeed = 2
-      controls.enableDamping = true
-      controls.dampingFactor = 0.05
-      controls.enableZoom = true
-      controls.zoomSpeed = 1.2
-      controls.target.copy(center)
-      controls.update()
-      controlsRef.current = controls
-
-      return () => controls.dispose()
+    // Frame it. A disc viewed straight down its own axis is a thin band —
+    // the camera has to sit ABOVE the plane for it to read as a galaxy.
+    if (camera && !spheresRef.current.length) {
+      frameAmbient(camera)
     }
-  }, [repos, scene, renderer, camera, filteredLanguage])
 
-  // Animation loop — optimized: no per-frame allocations
+    phaseRef.current = 'ambient'
+    phaseStartRef.current = performance.now() / 1000
+
+    return () => {
+      scene.remove(group)
+      geometry.dispose()
+      material.dispose()
+      ambientRef.current = []
+      ambientGroupRef.current = null
+    }
+  }, [scene, ready, camera])
+
+  /* ── Real repositories ────────────────────────────────────────────────
+     Positioned at final coordinates from frame one. Things GROW here; they
+     do not fly. */
+
   useEffect(() => {
-    if (!scene || !renderer || !camera || spheresRef.current.length === 0) return
+    if (!scene || !camera || !renderer) return
 
-    let animationFrameId
-    const frustum = frustumRef.current
-    const projScreenMatrix = projScreenMatrixRef.current
+    // Tear down the previous universe.
+    if (groupRef.current) {
+      groupRef.current.children.forEach((m) => m.material?.dispose())
+      scene.remove(groupRef.current)
+      groupRef.current = null
+    }
+    geometryRef.current?.dispose()
+    geometryRef.current = null
+    spheresRef.current = []
+    hoveredRef.current = null
+    currentIndexRef.current = -1
 
-    const animate = () => {
-      animationFrameId = requestAnimationFrame(animate)
-      const now = performance.now() / 1000
-
-      // Initialize entrance timer on first frame
-      if (entranceStartRef.current === null) {
-        entranceStartRef.current = now
+    if (!repos || repos.length === 0) {
+      // Back to the ambient galaxy — a failed or cleared search must not
+      // leave a dead canvas.
+      if (ambientGroupRef.current) {
+        phaseRef.current = 'ambient'
+        phaseStartRef.current = performance.now() / 1000
       }
-      const entranceElapsed = now - entranceStartRef.current
+      return
+    }
 
-      // Update controls
-      if (controlsRef.current) {
-        controlsRef.current.update()
-      }
+    const group = new THREE.Group()
+    groupRef.current = group
+    scene.add(group)
 
-      // Viewport Culling — reuse pre-allocated objects
-      projScreenMatrix.multiplyMatrices(
-        camera.projectionMatrix,
-        camera.matrixWorldInverse
-      )
-      frustum.setFromProjectionMatrix(projScreenMatrix)
+    const detail = repos.length > 150 ? 1 : repos.length > 50 ? 2 : 4
 
-      // Process each sphere
-      visibleSpheresRef.current = []
+    // One shared unit-radius geometry; per-mesh scale carries the size.
+    const geometry = new THREE.IcosahedronGeometry(1, detail)
+    geometryRef.current = geometry
 
-      spheresRef.current.forEach((sphere, i) => {
-        const inFrustum = frustum.containsPoint(sphere.position)
-        const matchesLanguage =
-          !filteredLanguage ||
-          sphere.userData.repo.language?.toLowerCase() === filteredLanguage.toLowerCase()
+    // Largest first — MOTION.md wants the big shapes to establish the form
+    // before the detail arrives.
+    const ordered = [...repos].sort((a, b) => b.size - a.size)
 
-        // Visibility
-        sphere.visible = true // keep visible for fade effects
-        if (!inFrustum) {
-          sphere.visible = false
-          return
-        }
+    spheresRef.current = ordered.map((data, order) => {
+      const { repo, position, size } = data
+      const { color } = getLanguageInfo(repo.language)
 
-        // Language filter: fade non-matching
-        if (filteredLanguage && !matchesLanguage) {
-          sphere.material.opacity = 0.08
-          return
-        }
-
-        // Track visible spheres for raycasting
-        visibleSpheresRef.current.push(sphere)
-
-        const baseSize = sphere.userData.baseSize || 1
-
-        // --- Entrance animation ---
-        if (!entranceCompleteRef.current) {
-          const sphereDelay = i * ENTRANCE_STAGGER
-          const sphereProgress = Math.max(0, Math.min(1,
-            (entranceElapsed - sphereDelay) / 0.6
-          ))
-          const easedProgress = easeOutBack(sphereProgress)
-
-          sphere.material.opacity = sphereProgress
-          const entranceScale = easedProgress * baseSize
-          sphere.scale.set(entranceScale, entranceScale, entranceScale)
-
-          // Check if all spheres have finished entrance
-          if (entranceElapsed > ENTRANCE_DURATION + spheresRef.current.length * ENTRANCE_STAGGER) {
-            entranceCompleteRef.current = true
-          }
-          return // Skip idle animation during entrance
-        }
-
-        // --- Idle animation (post-entrance) ---
-        sphere.material.opacity = 1.0
-
-        // Gentle self-rotation
-        sphere.rotation.x += 0.003
-        sphere.rotation.y += 0.006
-
-        // Subtle breathing pulse
-        const pulse = Math.sin(now * 1.5 + i * 0.15) * 0.05 + 1
-
-        // Hover scale — smooth lerp toward target
-        const isHovered = hoveredSphereRef.current === sphere
-        const targetHoverScale = isHovered ? 1.25 : 1.0
-        const currentHoverScale = hoverScaleRef.current[i] || 1.0
-        const newHoverScale = currentHoverScale + (targetHoverScale - currentHoverScale) * 0.12
-        hoverScaleRef.current[i] = newHoverScale
-
-        // Emissive glow on hover (smooth lerp)
-        const targetEmissive = isHovered ? 0.8 : 0.3
-        const currentEmissive = sphere.material.emissive.r / (sphere.material.color.r || 1)
-        const newEmissive = currentEmissive + (targetEmissive - currentEmissive) * 0.1
-        sphere.material.emissive.copy(sphere.material.color).multiplyScalar(newEmissive)
-
-        const finalScale = baseSize * pulse * newHoverScale
-        sphere.scale.set(finalScale, finalScale, finalScale)
+      const material = new THREE.MeshPhongMaterial({
+        color,
+        emissive: new THREE.Color(color).multiplyScalar(0.28),
+        shininess: 90,
+        transparent: true,
+        opacity: 0
       })
 
-      // Slow group rotation
-      if (sphereGroupRef.current) {
-        sphereGroupRef.current.rotation.y += 0.00003
+      const mesh = new THREE.Mesh(geometry, material)
+      mesh.position.set(position.x, position.y, position.z)
+      mesh.scale.setScalar(reducedMotionRef.current ? size : 0)
+      mesh.userData = { repo, order, baseSize: size, hoverScale: 1, filterScale: 1 }
+      group.add(mesh)
+      return mesh
+    })
+
+    frameCamera(group, camera, renderer, controlsRef)
+
+    phaseRef.current = reducedMotionRef.current ? 'settled' : 'dissolving'
+    phaseStartRef.current = performance.now() / 1000
+
+    if (reducedMotionRef.current) {
+      spheresRef.current.forEach((m) => (m.material.opacity = 1))
+      if (ambientMaterialRef.current) ambientMaterialRef.current.opacity = 0
+      onSettled?.()
+    }
+  }, [repos, scene, camera, renderer, onSettled])
+
+  /* ── The render loop ──────────────────────────────────────────────────── */
+
+  useEffect(() => {
+    if (!scene || !renderer || !camera) return
+
+    let raf
+    let lastFrame = performance.now() / 1000
+    const frustum = frustumRef.current
+    const projMatrix = projMatrixRef.current
+
+    const animate = () => {
+      raf = requestAnimationFrame(animate)
+
+      const now = performance.now() / 1000
+      const dt = Math.min(0.1, now - lastFrame)
+      lastFrame = now
+      const t = now - phaseStartRef.current
+      const phase = phaseRef.current
+      const reduced = reducedMotionRef.current
+
+      controlsRef.current?.update()
+
+      projMatrix.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse)
+      frustum.setFromProjectionMatrix(projMatrix)
+
+      const ambientMat = ambientMaterialRef.current
+      const ambientGroup = ambientGroupRef.current
+
+      /* ── Ambient galaxy ── */
+      if (ambientGroup && ambientMat) {
+        if (phase === 'ambient' || phase === 'dimming') {
+          const target = phase === 'dimming' ? AMBIENT_DIM_TYPING : AMBIENT_DIM
+
+          if (reduced) {
+            ambientMat.opacity = target
+            ambientRef.current.forEach((m) => m.scale.setScalar(m.userData.size))
+          } else {
+            // Stream in, centre outward, 15ms apart.
+            let allGrown = true
+            ambientRef.current.forEach((mesh) => {
+              const delay = mesh.userData.order * AMBIENT_STAGGER
+              const p = clamp01((t - delay) / AMBIENT_GROW)
+              if (p < 1) allGrown = false
+              mesh.scale.setScalar(easeOutCubic(p) * mesh.userData.size)
+            })
+            // Opacity follows the whole group, not each sphere, so the
+            // dimming transition stays uniform.
+            const fade = clamp01(t / 0.4)
+            ambientMat.opacity =
+              ambientMat.opacity + (target * fade - ambientMat.opacity) * Math.min(1, dt * 6)
+            if (allGrown) { /* settled into drift */ }
+          }
+
+          // Ambient drift, halved after a long idle.
+          const idle = now - lastInputRef.current > IDLE_AFTER
+          if (!reduced) {
+            ambientGroup.rotation.y += AMBIENT_DRIFT * dt * (idle ? 0.5 : 1)
+          }
+        } else if (phase === 'dissolving') {
+          // Every placeholder scales to 0 over 400ms, staggered.
+          const p = clamp01(t / DISSOLVE)
+          ambientRef.current.forEach((mesh) => {
+            const delay = (mesh.userData.order / ambientRef.current.length) * 0.15
+            const q = clamp01((t - delay) / DISSOLVE)
+            mesh.scale.setScalar((1 - easeOutCubic(q)) * mesh.userData.size)
+          })
+          ambientMat.opacity = AMBIENT_DIM_TYPING * (1 - p)
+        } else if (ambientMat.opacity !== 0) {
+          ambientMat.opacity = 0
+          ambientRef.current.forEach((m) => m.scale.setScalar(0))
+        }
+      }
+
+      /* ── Camera pull-back: the space opens to receive the data ── */
+      if (phase === 'dissolving' && !reduced) {
+        const p = easeOutQuad(clamp01(t / CAMERA_PULLBACK))
+        const target = cameraDistRef.current * CAMERA_PULLBACK_FACTOR
+        const from = cameraDistRef.current
+        const dist = from + (target - from) * p
+        const ctrl = controlsRef.current
+        if (ctrl) {
+          const dir = camera.position.clone().sub(ctrl.target).normalize()
+          camera.position.copy(ctrl.target).addScaledVector(dir, dist)
+        }
+        if (t >= Math.max(DISSOLVE, CAMERA_PULLBACK)) {
+          phaseRef.current = 'entering'
+          phaseStartRef.current = now
+        }
+      }
+
+      /* ── Real repositories ── */
+      const spheres = spheresRef.current
+      if (spheres.length > 0 && (phase === 'entering' || phase === 'settled')) {
+        const entering = phase === 'entering'
+        let allIn = true
+
+        for (let i = 0; i < spheres.length; i++) {
+          const mesh = spheres[i]
+          const base = mesh.userData.baseSize
+
+          if (!frustum.containsPoint(mesh.position)) {
+            mesh.visible = false
+            continue
+          }
+          mesh.visible = true
+
+          if (entering && !reduced) {
+            // Stagger is capped: beyond 100 spheres the rest arrive on the
+            // final beat rather than dragging the sequence out.
+            const delay = Math.min(mesh.userData.order, ENTRANCE_STAGGER_CAP) * ENTRANCE_STAGGER
+            const p = clamp01((t - delay) / ENTRANCE_GROW)
+            if (p < 1) allIn = false
+            // ease-out, no overshoot. The old easeOutBack popped past 1.0.
+            mesh.scale.setScalar(easeOutCubic(p) * base)
+            mesh.material.opacity = p
+            continue
+          }
+
+          // Language filter. MOTION.md: filtered-out spheres SHRINK to 0.25
+          // and 15% opacity — they never vanish, so the shape of the whole
+          // universe stays legible. Applying it here rather than by filtering
+          // the prop matters: filtering the prop would tear the scene down and
+          // replay the entrance every time the filter changed.
+          const lang = mesh.userData.repo.language
+          const matches =
+            !filterRef.current ||
+            (lang && lang.toLowerCase() === filterRef.current.toLowerCase())
+
+          const targetOpacity = matches ? 1 : 0.15
+          const targetFilterScale = matches ? 1 : 0.25
+
+          if (reduced) {
+            mesh.material.opacity = targetOpacity
+            mesh.scale.setScalar(base * targetFilterScale)
+            continue
+          }
+
+          // 300ms to the filter target.
+          mesh.userData.filterScale +=
+            (targetFilterScale - mesh.userData.filterScale) * Math.min(1, dt * 8)
+          mesh.material.opacity +=
+            (targetOpacity - mesh.material.opacity) * Math.min(1, dt * 8)
+
+          // Settled: hover response only. No breathing pulse — a scene that
+          // never stops moving is a scene where hover reads as noise.
+          const isHovered = hoveredRef.current === mesh && matches
+          const target = isHovered ? 1.15 : 1
+          mesh.userData.hoverScale +=
+            (target - mesh.userData.hoverScale) * Math.min(1, dt * 12)
+          mesh.scale.setScalar(
+            base * mesh.userData.hoverScale * mesh.userData.filterScale
+          )
+
+          const emissive = isHovered ? 0.6 : 0.28
+          mesh.material.emissive
+            .copy(mesh.material.color)
+            .multiplyScalar(emissive)
+        }
+
+        if (entering && (allIn || reduced)) {
+          phaseRef.current = 'settled'
+          phaseStartRef.current = now
+          onSettled?.()
+        }
+
+        // Ambient drift of the real universe, halved after a long idle.
+        if (!reduced && groupRef.current) {
+          const idle = now - lastInputRef.current > IDLE_AFTER
+          groupRef.current.rotation.y += AMBIENT_DRIFT * 0.35 * dt * (idle ? 0.5 : 1)
+        }
       }
 
       renderer.render(scene, camera)
     }
 
     animate()
+    return () => cancelAnimationFrame(raf)
+  }, [scene, renderer, camera, onSettled])
 
-    return () => {
-      cancelAnimationFrame(animationFrameId)
-    }
-  }, [scene, renderer, camera, repos, filteredLanguage])
+  /* ── Typing dims the demo galaxy ──────────────────────────────────────── */
 
-  // Keyboard Navigation — sequential Tab cycling
   useEffect(() => {
-    const handleKeyDown = (e) => {
-      keyStateRef.current[e.key] = true
-
-      if (e.key === 'Tab' && spheresRef.current.length > 0) {
-        e.preventDefault()
-        // Sequential cycling (not random)
-        if (e.shiftKey) {
-          currentRepoIndexRef.current =
-            (currentRepoIndexRef.current - 1 + spheresRef.current.length) % spheresRef.current.length
-        } else {
-          currentRepoIndexRef.current =
-            (currentRepoIndexRef.current + 1) % spheresRef.current.length
-        }
-        const sphere = spheresRef.current[currentRepoIndexRef.current]
-        if (sphere) {
-          onRepoClick(sphere.userData)
-        }
-      }
-
-      if (e.key === '+' || e.key === '=') {
-        e.preventDefault()
-        if (controlsRef.current) {
-          controlsRef.current.object.zoom *= 1.1
-          controlsRef.current.object.updateProjectionMatrix()
-        }
-      }
-
-      if (e.key === '-' || e.key === '_') {
-        e.preventDefault()
-        if (controlsRef.current) {
-          controlsRef.current.object.zoom /= 1.1
-          controlsRef.current.object.updateProjectionMatrix()
-        }
-      }
-
-      if (e.key === 'Escape') {
-        keyStateRef.current['Escape'] = true
-      }
+    if (!isTyping) return
+    if (phaseRef.current === 'ambient') {
+      phaseRef.current = 'dimming'
+      // Keep the clock so spheres that are still growing carry on growing.
     }
+  }, [isTyping])
 
-    const handleKeyUp = (e) => {
-      keyStateRef.current[e.key] = false
-    }
+  /* ── Interaction ──────────────────────────────────────────────────────── */
 
-    window.addEventListener('keydown', handleKeyDown)
-    window.addEventListener('keyup', handleKeyUp)
-
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown)
-      window.removeEventListener('keyup', handleKeyUp)
-    }
-  }, [onRepoClick])
-
-  // Hover Tooltips — debounce is created ONCE, not per mousemove
-  useEffect(() => {
-    if (!containerRef.current) return
-
-    let debounceTimeout = null
-
-    const handleMouseMove = (event) => {
-      mouseRef.current.x = (event.clientX / window.innerWidth) * 2 - 1
-      mouseRef.current.y = -(event.clientY / window.innerHeight) * 2 + 1
-
-      // Proper debounce: clear previous timeout, set new one
-      clearTimeout(debounceTimeout)
-      debounceTimeout = setTimeout(() => performHoverCheck(event), 50)
-    }
-
-    const handleMouseLeave = () => {
-      clearTimeout(debounceTimeout)
-      hoveredSphereRef.current = null
-      document.body.style.cursor = 'default'
-      setTooltip(null)
-    }
-
-    const el = containerRef.current
-    el.addEventListener('mousemove', handleMouseMove)
-    el.addEventListener('mouseleave', handleMouseLeave)
-
-    return () => {
-      clearTimeout(debounceTimeout)
-      el?.removeEventListener('mousemove', handleMouseMove)
-      el?.removeEventListener('mouseleave', handleMouseLeave)
-    }
-  }, [performHoverCheck])
-
-  // Click handler
-  useEffect(() => {
-    if (!containerRef.current) return
-
-    const handleClick = (event) => {
-      mouseRef.current.x = (event.clientX / window.innerWidth) * 2 - 1
-      mouseRef.current.y = -(event.clientY / window.innerHeight) * 2 + 1
-
+  const pick = useCallback(
+    (clientX, clientY) => {
+      if (!camera) return null
+      mouseRef.current.x = (clientX / window.innerWidth) * 2 - 1
+      mouseRef.current.y = -(clientY / window.innerHeight) * 2 + 1
       raycasterRef.current.setFromCamera(mouseRef.current, camera)
-      const targets = visibleSpheresRef.current.length > 0
-        ? visibleSpheresRef.current
-        : spheresRef.current
-      const intersects = raycasterRef.current.intersectObjects(targets)
+      // Filtered-out spheres are still on screen at 25% — they must not be
+      // pickable, or hover would report a repository the filter excluded.
+      const f = filterRef.current
+      const pickable = spheresRef.current.filter((m) => {
+        if (!m.visible) return false
+        if (!f) return true
+        const lang = m.userData.repo.language
+        return lang && lang.toLowerCase() === f.toLowerCase()
+      })
+      const hits = raycasterRef.current.intersectObjects(pickable)
+      return hits.length > 0 ? hits[0].object : null
+    },
+    [camera]
+  )
 
-      if (intersects.length > 0) {
-        const repoData = intersects[0].object.userData
-        onRepoClick(repoData)
-      }
-    }
-
-    const el = containerRef.current
-    el.addEventListener('click', handleClick)
-    return () => {
-      el?.removeEventListener('click', handleClick)
-    }
-  }, [camera, onRepoClick])
-
-  // Touch Controls
   useEffect(() => {
-    if (!containerRef.current) return
+    const el = containerRef.current
+    if (!el) return
 
-    const handleTouchStart = (e) => {
+    let moveTimer = null
+
+    const noteInput = () => {
+      lastInputRef.current = performance.now() / 1000
+    }
+
+    const onMove = (e) => {
+      noteInput()
+      clearTimeout(moveTimer)
+      moveTimer = setTimeout(() => {
+        const mesh = pick(e.clientX, e.clientY)
+        hoveredRef.current = mesh
+        document.body.style.cursor = mesh ? 'pointer' : 'default'
+        setHovered(mesh ? mesh.userData.repo : null)
+      }, 40)
+    }
+
+    const onLeave = () => {
+      clearTimeout(moveTimer)
+      hoveredRef.current = null
+      document.body.style.cursor = 'default'
+      setHovered(null)
+    }
+
+    const onClick = (e) => {
+      noteInput()
+      const mesh = pick(e.clientX, e.clientY)
+      if (mesh) onRepoClick(mesh.userData)
+    }
+
+    let pinchStart = 0
+    const onTouchStart = (e) => {
+      noteInput()
       if (e.touches.length === 2) {
         const dx = e.touches[0].clientX - e.touches[1].clientX
         const dy = e.touches[0].clientY - e.touches[1].clientY
-        lastTouchDistanceRef.current = Math.sqrt(dx * dx + dy * dy)
+        pinchStart = Math.hypot(dx, dy)
       }
     }
-
-    const handleTouchMove = (e) => {
-      if (e.touches.length === 2 && controlsRef.current) {
-        const dx = e.touches[0].clientX - e.touches[1].clientX
-        const dy = e.touches[0].clientY - e.touches[1].clientY
-        const distance = Math.sqrt(dx * dx + dy * dy)
-        const delta = distance - lastTouchDistanceRef.current
-
-        const zoomDelta = delta * 0.01
-        controlsRef.current.object.zoom += zoomDelta
-        controlsRef.current.object.updateProjectionMatrix()
-        lastTouchDistanceRef.current = distance
-      }
+    const onTouchMove = (e) => {
+      noteInput()
+      if (e.touches.length !== 2 || !controlsRef.current) return
+      const dx = e.touches[0].clientX - e.touches[1].clientX
+      const dy = e.touches[0].clientY - e.touches[1].clientY
+      const d = Math.hypot(dx, dy)
+      camera.position.multiplyScalar(1 - (d - pinchStart) * 0.001)
+      pinchStart = d
+    }
+    const onTouchEnd = (e) => {
+      if (e.touches.length !== 0) return
+      const touch = e.changedTouches[0]
+      const mesh = pick(touch.clientX, touch.clientY)
+      if (mesh) onRepoClick(mesh.userData)
     }
 
-    const handleTouchEnd = (e) => {
-      if (e.touches.length === 0) {
-        const touch = e.changedTouches[0]
-        mouseRef.current.x = (touch.clientX / window.innerWidth) * 2 - 1
-        mouseRef.current.y = -(touch.clientY / window.innerHeight) * 2 + 1
-
-        raycasterRef.current.setFromCamera(mouseRef.current, camera)
-        const targets = visibleSpheresRef.current.length > 0
-          ? visibleSpheresRef.current
-          : spheresRef.current
-        const intersects = raycasterRef.current.intersectObjects(targets)
-
-        if (intersects.length > 0) {
-          const repoData = intersects[0].object.userData
-          onRepoClick(repoData)
-        }
-      }
-    }
-
-    const el = containerRef.current
-    el.addEventListener('touchstart', handleTouchStart)
-    el.addEventListener('touchmove', handleTouchMove)
-    el.addEventListener('touchend', handleTouchEnd)
+    el.addEventListener('mousemove', onMove)
+    el.addEventListener('mouseleave', onLeave)
+    el.addEventListener('click', onClick)
+    el.addEventListener('touchstart', onTouchStart)
+    el.addEventListener('touchmove', onTouchMove)
+    el.addEventListener('touchend', onTouchEnd)
+    window.addEventListener('pointerdown', noteInput)
+    window.addEventListener('wheel', noteInput, { passive: true })
 
     return () => {
-      el?.removeEventListener('touchstart', handleTouchStart)
-      el?.removeEventListener('touchmove', handleTouchMove)
-      el?.removeEventListener('touchend', handleTouchEnd)
+      clearTimeout(moveTimer)
+      el.removeEventListener('mousemove', onMove)
+      el.removeEventListener('mouseleave', onLeave)
+      el.removeEventListener('click', onClick)
+      el.removeEventListener('touchstart', onTouchStart)
+      el.removeEventListener('touchmove', onTouchMove)
+      el.removeEventListener('touchend', onTouchEnd)
+      window.removeEventListener('pointerdown', noteInput)
+      window.removeEventListener('wheel', noteInput)
     }
-  }, [camera, onRepoClick])
+  }, [pick, onRepoClick, camera])
 
-  // Function to update language filter
-  const updateLanguageFilter = (language) => {
-    setFilteredLanguage(language)
+  /* ── Keyboard ─────────────────────────────────────────────────────────── */
+
+  useEffect(() => {
+    const onKeyDown = (e) => {
+      const tag = document.activeElement?.tagName
+      if (tag === 'INPUT' || tag === 'TEXTAREA') return
+      lastInputRef.current = performance.now() / 1000
+
+      const list = spheresRef.current
+      if (e.key === 'Tab' && list.length > 0) {
+        e.preventDefault()
+        const step = e.shiftKey ? -1 : 1
+        currentIndexRef.current =
+          (currentIndexRef.current + step + list.length) % list.length
+        onRepoClick(list[currentIndexRef.current].userData)
+      }
+
+      if ((e.key === '+' || e.key === '=') && camera) {
+        e.preventDefault()
+        camera.position.multiplyScalar(0.9)
+      }
+      if ((e.key === '-' || e.key === '_') && camera) {
+        e.preventDefault()
+        camera.position.multiplyScalar(1.1)
+      }
+    }
+
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [onRepoClick, camera])
+
+  /* ── Helpers ──────────────────────────────────────────────────────────── */
+
+  /**
+   * Frame the universe.
+   *
+   * The old code set only `camera.position.z` and left x/y at 0, then looked
+   * at a bounding-box centre that is rarely the origin — an off-axis view
+   * that projected the cluster into a corner. It also measured the bounding
+   * box while every mesh was still scaled to 0, so the box bounded points
+   * rather than spheres and the fit came out consistently too tight.
+   */
+  /**
+   * Frame the ambient galaxy.
+   *
+   * The generator builds a thick disc in the x/z plane. Viewed from the
+   * default camera — straight down -z — that projects to a thin horizontal
+   * band about 13% of the viewport tall. Lifting the camera above the plane
+   * and looking down at it is what makes it read as a galaxy.
+   */
+  function frameAmbient(cam) {
+    const RADIUS = 34
+    const THICKNESS = 8
+    const portrait = cam.aspect < 1
+    const fov = (cam.fov * Math.PI) / 180
+
+    // On a tall viewport a shallow tilt collapses the disc into a thin band,
+    // so look further down on to it — the projection becomes round rather
+    // than a stripe.
+    const tilt = portrait ? 0.95 : 0.42 // ~54deg portrait, ~24deg landscape
+
+    // Frame by the PROJECTED extent, not the radius. Seen from 24 degrees
+    // above, a disc of radius 34 is only ~14 units tall on screen; framing by
+    // the radius left it filling a third of the viewport.
+    const projectedHalfHeight = RADIUS * Math.sin(tilt) + THICKNESS / 2
+    const fitH = projectedHalfHeight / (portrait ? 0.62 : 0.52) / Math.tan(fov / 2)
+    // Portrait deliberately crops the galaxy's width. A galaxy running past
+    // the edges reads better than a small one floating in the middle.
+    const fitW = RADIUS / (portrait ? 1.4 : 0.6) / Math.tan(fov / 2) / cam.aspect
+    const dist = Math.max(fitH, fitW)
+
+    cam.position.set(0, Math.sin(tilt) * dist, Math.cos(tilt) * dist)
+    cam.lookAt(0, 0, 0)
+    cam.near = 0.1
+    cam.far = dist * 8
+    cam.updateProjectionMatrix()
+    cameraDistRef.current = dist
   }
+
+  function frameCamera(group, cam, rend, controls) {
+    const box = new THREE.Box3()
+    const v = new THREE.Vector3()
+
+    group.children.forEach((mesh) => {
+      const r = mesh.userData.baseSize || 1
+      box.expandByPoint(v.copy(mesh.position).addScalar(r))
+      box.expandByPoint(v.copy(mesh.position).subScalar(r))
+    })
+
+    const center = box.getCenter(new THREE.Vector3())
+    const size = box.getSize(new THREE.Vector3())
+
+    const fov = (cam.fov * Math.PI) / 180
+    const fitHeight = size.y / 2 / Math.tan(fov / 2)
+    const fitWidth = size.x / 2 / Math.tan(fov / 2) / cam.aspect
+
+    // Depth is NOT a fitting distance. The previous form was
+    //   max(fitHeight, fitWidth, size.z) * 1.25
+    // which compared a 68-unit depth extent against ~30-unit fit distances and
+    // won every time, parking the camera more than twice as far back as the
+    // framing needed and leaving the universe as a small clump in the middle.
+    //
+    // Fit the cluster's cross-section, then make sure the camera is clear of
+    // its depth so the near spheres are not inside the near plane.
+    const fit = Math.max(fitHeight, fitWidth) * 1.15
+    const dist = Math.max(fit, size.z * 0.7)
+
+    cameraDistRef.current = dist
+
+    // Position RELATIVE to the centre, so the view is on-axis.
+    cam.position.set(center.x, center.y, center.z + dist)
+    cam.near = Math.max(0.1, dist / 500)
+    cam.far = dist * 12
+    cam.updateProjectionMatrix()
+
+    controls.current?.dispose()
+    const ctrl = new OrbitControls(cam, rend.domElement)
+    ctrl.enableDamping = true
+    ctrl.dampingFactor = 0.06
+    ctrl.autoRotate = false // drift is driven by the render loop, per MOTION.md
+    ctrl.target.copy(center)
+    ctrl.update()
+    controls.current = ctrl
+  }
+
+  /* ── Render ───────────────────────────────────────────────────────────── */
 
   return (
     <>
@@ -530,7 +655,7 @@ export default function Visualizer({ repos, onRepoClick, detectedLanguages = [] 
         ref={containerRef}
         className="scene"
         role="application"
-        aria-label="3D GitHub repository visualization. Use Tab to cycle through repositories, +/- to zoom, mouse to orbit."
+        aria-label="3D GitHub repository visualization. Tab cycles repositories, +/- zooms, drag to orbit."
         tabIndex={0}
       />
 
@@ -545,26 +670,19 @@ export default function Visualizer({ repos, onRepoClick, detectedLanguages = [] 
         </div>
       )}
 
-      {/* Enhanced Tooltip */}
-      {tooltip && (
-        <div
-          className="tooltip"
-          role="tooltip"
-          style={{
-            position: 'fixed',
-            left: tooltip.x,
-            top: tooltip.y,
-            zIndex: 1000
-          }}
-        >
-          <div className="tooltip-name">{tooltip.name}</div>
-          {tooltip.language && (
-            <div className="tooltip-language">{tooltip.language}</div>
-          )}
-          {tooltip.description && (
-            <div className="tooltip-desc">{tooltip.description}</div>
-          )}
-          <div className="tooltip-stars">{tooltip.stars.toLocaleString()} stars</div>
+      {/* Hover readout. A fixed slot, never a tooltip chasing the cursor in
+          3D — that jitters. */}
+      {hovered && (
+        <div className="hover-slot" role="status">
+          <span className="hover-name">{hovered.name}</span>
+          <span className="hover-meta">
+            {hovered.language || 'other'}
+            {' · '}
+            <span className="sig-key">
+              {(hovered.stargazers_count || 0).toLocaleString()}
+            </span>{' '}
+            stars
+          </span>
         </div>
       )}
     </>

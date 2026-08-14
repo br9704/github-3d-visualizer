@@ -60,6 +60,13 @@ function App() {
   const [starCount, setStarCount] = useState(null)
   const [renderMs, setRenderMs]   = useState(null)
 
+  /** MOTION.md: the demo galaxy eases from 50% to 25% on the first keystroke. */
+  const [isTyping, setIsTyping] = useState(false)
+
+  /** Fired when the entrance sequence finishes, so the readout can print a
+      measured settle time rather than an estimate. */
+  const handleSettled = useCallback(() => {}, [])
+
   /** Store user data for pagination */
   const userDataRef = useRef({})
 
@@ -282,8 +289,12 @@ function App() {
   // ─── Filtered repos for display ────────────────────────────────────────────
 
   /**
-   * Apply language filter to positioned repos.
-   * More filters can be chained here as needed.
+   * Count of repos matching the active language filter.
+   *
+   * NOTE: this is NOT what the scene renders. The scene receives every
+   * positioned repo plus the active filter, and dims non-matching spheres in
+   * the render loop. Filtering the prop instead would tear the scene down and
+   * replay the whole entrance sequence on every filter change.
    */
   const displayedRepos = filteredLanguage
     ? positionedRepos.filter(
@@ -301,15 +312,21 @@ function App() {
         skip to main content
       </a>
 
+      {/* MOTION.md 0-400ms: a 1px grid plane fades to 8% opacity. Structure
+          under the scene, not decoration. */}
+      <div className="scene-grid" data-visible="true" aria-hidden="true" />
+
       {/* ── Scene layer (z-index 0) ────────────────────────────────────────
           The canvas MUST stay below the HUD. It previously mounted as
           position:fixed with no z-index and painted over the header, which
           is what made this app render as a blank page. */}
       <div id="main-content">
         <Visualizer
-          repos={displayedRepos}
+          repos={positionedRepos}
+          filteredLanguage={filteredLanguage}
           onRepoClick={handleRepoClick}
-          detectedLanguages={detectedLanguages}
+          isTyping={isTyping}
+          onSettled={handleSettled}
         />
       </div>
 
@@ -325,6 +342,7 @@ function App() {
             loadingPhase={loadingPhase}
             error={error}
             compact={hasScene}
+            onFirstKeystroke={() => setIsTyping(true)}
           />
         }
         railLeft={

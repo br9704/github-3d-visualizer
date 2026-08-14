@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import UsernameAutocomplete from './UsernameAutocomplete'
+import { useTypedText } from '../hooks/useTypedText'
 import '../styles/SearchBar.css'
 
 /**
@@ -57,6 +58,12 @@ export default function SearchBar({
 
   const message = error || localError
 
+  // MOTION.md: the hint types once, 40ms/char. Reduced motion shows it whole.
+  const hint = useTypedText(
+    !loading && !message && !compact ? 'enter a username — try torvalds' : '',
+    40
+  )
+
   return (
     <div className="search" data-compact={compact}>
       <div className="search-row">
@@ -109,7 +116,7 @@ export default function SearchBar({
         )}
 
         {!loading && !message && !compact && (
-          <p className="sig-say search-hint">enter a username &mdash; try torvalds</p>
+          <p className="sig-say search-hint">{hint}</p>
         )}
       </div>
     </div>

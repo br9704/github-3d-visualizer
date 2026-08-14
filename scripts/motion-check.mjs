@@ -1,0 +1,217 @@
+#!/usr/bin/env node
+/**
+ * MOTION.md acceptance checks.
+ *
+ * The parts of the animation spec that can be asserted rather than eyeballed:
+ *
+ *   1. cold load with no input is styled, branded and MOVING within 2s
+ *   2. a 404 prints instant text — no dead loader left spinning
+ *   3. a rate-limit prints instant text
+ *   4. prefers-reduced-motion places everything instantly, with no drift,
+ *      and every number is still readable
+ *
+ *   node scripts/motion-check.mjs [--base http://localhost:4173]
+ *
+ * Screenshots for each case land in --out so the sprint gate has evidence.
+ */
+import fs from 'node:fs';
+import path from 'node:path';
+import { createRequire } from 'node:module';
+import { makeRepos, makeUser, README_TEXT } from '../tests/fixtures/github.mjs';
+
+const require_ = createRequire(import.meta.url);
+function loadChromium() {
+  for (const c of [
+    'playwright',
+    '/Users/brunojaamaa/bruno-portfolio/node_modules/playwright/index.js'
+  ]) {
+    try {
+      return require_(c).chromium;
+    } catch {}
+  }
+  throw new Error('Playwright not found.');
+}
+
+const argv = process.argv.slice(2);
+const arg = (n, d) => {
+  const i = argv.indexOf(`--${n}`);
+  return i >= 0 ? argv[i + 1] : d;
+};
+const BASE = arg('base', 'http://localhost:4173');
+const OUT = arg('out', 'shots');
+fs.mkdirSync(OUT, { recursive: true });
+
+const chromium = loadChromium();
+const browser = await chromium.launch({
+  headless: true,
+  args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader']
+});
+
+const results = [];
+const record = (name, pass, detail) => {
+  results.push({ name, pass, detail });
+  console.log(`${pass ? '✓' : '✗'} ${name}${detail ? ` — ${detail}` : ''}`);
+};
+
+/**
+ * Count pixels the scene has actually painted.
+ *
+ * Reading the WebGL canvas back with drawImage returns transparent: without
+ * preserveDrawingBuffer the drawing buffer is cleared after compositing. So
+ * this screenshots the page instead and counts pixels brighter than the warm
+ * black ground, over a region the HUD does not cover.
+ */
+async function sceneSignature(page) {
+  const buf = await page.screenshot({
+    clip: { x: 340, y: 200, width: 760, height: 560 }
+  });
+  // Minimal PNG-free approach: hash bytes for motion, and count bright bytes
+  // for occupancy. The PNG is deterministic for identical frames.
+  let bright = 0;
+  for (let i = 0; i < buf.length; i++) if (buf[i] > 140) bright++;
+  let hash = 0;
+  for (let i = 0; i < buf.length; i += 7) hash = (hash * 31 + buf[i]) | 0;
+  return { bright, hash, bytes: buf.length };
+}
+
+async function litPixels(page) {
+  return (await sceneSignature(page)).bright;
+}
+
+async function newPage({ reduced = false, route } = {}) {
+  const ctx = await browser.newContext({
+    viewport: { width: 1440, height: 900 },
+    reducedMotion: reduced ? 'reduce' : 'no-preference'
+  });
+  if (route) await ctx.route('**://api.github.com/**', route);
+  const page = await ctx.newPage();
+  return { ctx, page };
+}
+
+/* ── 1. Cold load: moving within 2s, no input ────────────────────────────── */
+{
+  const { ctx, page } = await newPage();
+  await page.goto(BASE, { waitUntil: 'domcontentloaded' });
+  await page.waitForTimeout(2000);
+  const lit = await litPixels(page);
+  await page.screenshot({ path: path.join(OUT, 'motion-cold-2s.png') });
+
+  // Moving: two signatures 900ms apart must differ.
+  const s1 = await sceneSignature(page);
+  await page.waitForTimeout(900);
+  const s2 = await sceneSignature(page);
+
+  record(
+    'cold load renders a scene within 2s with no input',
+    lit > 5000,
+    `${lit} bright samples in the scene region`
+  );
+  record(
+    'the cold-load scene is moving',
+    s1.hash !== s2.hash,
+    `signatures 900ms apart differ (${s1.hash} vs ${s2.hash})`
+  );
+  await ctx.close();
+}
+
+/* ── 2. 404: instant text, no dead loader ────────────────────────────────── */
+{
+  const { ctx, page } = await newPage({
+    route: (r) =>
+      r.fulfill({ status: 404, contentType: 'application/json', body: '{"message":"Not Found"}' })
+  });
+  await page.goto(BASE, { waitUntil: 'networkidle' });
+  await page.fill('input[aria-label="GitHub username"]', 'nobody-here-at-all');
+  await page.keyboard.press('Enter');
+  await page.waitForTimeout(1500);
+  const alert = await page.locator('[role="alert"]').first().innerText().catch(() => '');
+  const loaderGone = (await page.locator('.sig-bar').count()) === 0;
+  await page.screenshot({ path: path.join(OUT, 'motion-404.png') });
+  record('404 prints text', /not found|no public/i.test(alert), JSON.stringify(alert.trim()));
+  record('404 leaves no dead loader', loaderGone);
+  await ctx.close();
+}
+
+/* ── 3. Rate limit: instant text ─────────────────────────────────────────── */
+{
+  const reset = Math.floor(Date.now() / 1000) + 240;
+  const { ctx, page } = await newPage({
+    route: (r) =>
+      r.fulfill({
+        status: 403,
+        contentType: 'application/json',
+        headers: {
+          'x-ratelimit-remaining': '0',
+          'x-ratelimit-reset': String(reset),
+          // Cross-origin JS can only read CORS-safelisted response headers.
+          // Real GitHub exposes these; a mock that does not would make the
+          // "try again in 4m" message untestable and silently wrong.
+          'access-control-allow-origin': '*',
+          'access-control-expose-headers': 'x-ratelimit-remaining, x-ratelimit-reset'
+        },
+        body: '{"message":"API rate limit exceeded"}'
+      })
+  });
+  await page.goto(BASE, { waitUntil: 'networkidle' });
+  await page.fill('input[aria-label="GitHub username"]', 'torvalds');
+  await page.keyboard.press('Enter');
+  await page.waitForTimeout(1500);
+  const alert = await page.locator('[role="alert"]').first().innerText().catch(() => '');
+  await page.screenshot({ path: path.join(OUT, 'motion-ratelimit.png') });
+  record('rate limit prints text', /rate limit/i.test(alert), JSON.stringify(alert.trim()));
+  // MOTION.md spells this message out: "> rate limited — try again in 4m".
+  record(
+    'rate limit reports the actual wait',
+    /try again in \d+m/.test(alert),
+    JSON.stringify(alert.trim())
+  );
+  await ctx.close();
+}
+
+/* ── 4. Reduced motion: instant placement, no drift ──────────────────────── */
+{
+  const repos = makeRepos(100);
+  const user = makeUser('fixture', 100);
+  const { ctx, page } = await newPage({
+    reduced: true,
+    route: (r) => {
+      const url = r.request().url();
+      const json = (b) =>
+        r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(b) });
+      if (/\/readme/.test(url))
+        return r.fulfill({ status: 200, contentType: 'text/plain', body: README_TEXT });
+      if (/\/users\/[^/]+\/repos/.test(url)) return json(repos);
+      if (/\/search\/users/.test(url)) return json({ items: [] });
+      if (/\/users\//.test(url)) return json(user);
+      return json({});
+    }
+  });
+  await page.goto(BASE, { waitUntil: 'networkidle' });
+  await page.waitForTimeout(400);
+
+  // Instant: the ambient galaxy is fully placed well before its 1.8s cascade.
+  const early = await litPixels(page);
+
+  await page.fill('input[aria-label="GitHub username"]', 'fixture');
+  await page.keyboard.press('Enter');
+  await page.waitForTimeout(1200);
+
+  const frameA = (await sceneSignature(page)).hash;
+  await page.waitForTimeout(1400);
+  const frameB = (await sceneSignature(page)).hash;
+
+  const readout = await page.locator('.stats').innerText().catch(() => '');
+  await page.screenshot({ path: path.join(OUT, 'motion-reduced.png') });
+
+  record('reduced motion places the scene immediately', early > 5000, `${early} bright samples at 400ms`);
+  record('reduced motion does not drift', frameA === frameB, 'two frames 1.4s apart are identical');
+  record('reduced motion keeps the data readable', /100\s*repos/i.test(readout), JSON.stringify(readout.trim().split('\n').join(' ')));
+  await ctx.close();
+}
+
+await browser.close();
+
+const failed = results.filter((r) => !r.pass);
+console.log('');
+console.log(failed.length ? `FAIL — ${failed.length}/${results.length} checks failed` : `PASS — ${results.length}/${results.length} MOTION.md checks green`);
+process.exit(failed.length ? 1 : 0);

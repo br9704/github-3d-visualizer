@@ -5,7 +5,7 @@
 Status keys, marked live as work happens — never batched:
 `[ ]` not started · `[~]` in progress · `[x]` complete · `[⏭]` deferred (always with a one-line reason)
 
-**Current sprint pointer:** S3
+**Current sprint pointer:** S4
 
 ---
 
@@ -144,14 +144,37 @@ The sprint that makes the page stop being white. Design system is **inherited, n
 
 ---
 
-## S3 — Three.js 0.185 + drop three-stdlib `[ ]`
+## S3 — Three.js 0.185 + drop three-stdlib `[x]`
 
-Deliberately before new scene code, so the ambient galaxy is written once against the final API. `record_decision` with the measured before/after.
+Deliberately before new scene code, so the ambient galaxy is written once against the final API.
 
-- [ ] `three@0.185.1`; remove `three-stdlib`; `OrbitControls` from `three/addons/controls/OrbitControls.js`.
-- [ ] Audit colour management — `outputColorSpace` and `THREE.Color` handling changed since 0.159 — and `MeshPhongMaterial` behaviour.
+- [x] `three@0.185.1`; removed `three-stdlib` (7 packages); `OrbitControls` now from `three/addons/controls/OrbitControls.js`.
+- [x] Colour management audited: no change. Both 0.159 and 0.185 are post-r152 (`ColorManagement` on, `outputColorSpace` sRGB) and post-r155 (physical light units), so no migration was required.
 
-**Acceptance:** build exit 0; screenshot diff of a **seeded fixture scene** before vs after shows no visual regression; bundle size recorded.
+**Acceptance:** ✅ build exit 0; **no visual regression, proven not eyeballed**; bundle size recorded.
+
+**As-shipped delta:**
+
+- **The comparison method had to be invented.** The scene auto-orbits, so a pixel diff between two runs is meaningless. `scripts/histcmp.mjs` compares the **colour histogram of the scene region** instead — rotation-tolerant, and exactly the signal that would move if colour management or lighting semantics had changed:
+
+  | Measure | Before (0.159) | After (0.185) |
+  |---|---|---|
+  | Lit pixels in scene region | 81,052 | 81,136 (+0.1%) |
+  | Histogram total-variation distance | — | **0.0015** (threshold 0.06) |
+
+- **Bundle got bigger, and that is recorded rather than glossed:**
+
+  | Asset | Before | After | Delta |
+  |---|---|---|---|
+  | JS raw | 730.94 kB | 796.74 kB | **+65.80 kB** |
+  | JS gzip | 196.34 kB | 212.10 kB | +15.76 kB |
+
+  three 0.185 is simply a larger library than 0.159, and removing `three-stdlib` does not offset it (only `OrbitControls` was being pulled from it, and it tree-shook well). **S10 pays this back** by code-splitting `three` out of the initial chunk.
+
+- **README resynced with S1/S2.** Four claims had drifted out of true and were corrected: the dark/light theme toggle (deleted in S1), "focus-trapped repository dialog" (both dialogs now), "one geometry per distinct sphere size" (one shared unit geometry now), and a structure listing that still showed the deleted `ThemeContext.jsx`.
+- Commit `82c8a7f`.
+
+**Deferred:** nothing.
 
 ---
 

@@ -18,7 +18,8 @@
     "guards": "node scripts/guards.mjs",
     "shots": "node scripts/shots.mjs",
     "verify": "npm run build && npm run guards",
-    "histcmp": "node scripts/histcmp.mjs"
+    "histcmp": "node scripts/histcmp.mjs",
+    "motion-check": "node scripts/motion-check.mjs"
   },
   "dependencies": {
     "axios": "^1.6.2",

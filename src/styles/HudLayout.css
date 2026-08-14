@@ -184,11 +184,20 @@
     left: 0;
     right: 0;
     width: auto;
-    height: 46vh;
+    /* Auto height on the empty state — a fixed 46vh sheet holding one
+       collapsed module is just dead black space. It only becomes a
+       fixed-height sheet once there is a universe and five modules in it,
+       which is also when the dock above needs a stable edge. */
+    height: auto;
+    max-height: 46vh;
     padding: var(--s2);
     background: rgba(5, 5, 5, 0.9);
     backdrop-filter: blur(8px);
     border-top: var(--hair) solid var(--hairline);
+  }
+
+  .hud[data-compact='true'] .hud-rail--left {
+    height: 46vh;
   }
 
   /* Directly above the sheet — never over the search. */
@@ -318,4 +327,45 @@
 
 .hud-rail input[type='range'] {
   accent-color: var(--amber);
+}
+
+/* ── Hover readout slot ───────────────────────────────────────────────────
+   Lives here because HudLayout owns every fixed position. The markup is in
+   Visualizer (it knows what is hovered); the placement is the HUD's job. */
+.hover-slot {
+  position: fixed;
+  left: 50%;
+  bottom: 56px;
+  transform: translateX(-50%);
+  z-index: var(--z-panel);
+  display: flex;
+  align-items: baseline;
+  gap: var(--s3);
+  max-width: min(560px, calc(100vw - var(--s6)));
+  padding: var(--s2) var(--s3);
+  background: rgba(5, 5, 5, 0.86);
+  backdrop-filter: blur(6px);
+  border: var(--hair) solid var(--steel);
+  border-radius: var(--radius);
+  font-family: var(--font-mono);
+  font-size: var(--fs-label);
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+.hover-name {
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.hover-meta {
+  color: var(--text-dim);
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 640px) {
+  .hover-slot {
+    display: none;
+  }
 }

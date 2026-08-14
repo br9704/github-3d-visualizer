@@ -53,7 +53,7 @@ const user = makeUser('fixture', 100);
  * and make the asset impossible to reproduce once their profile changed.
  */
 async function mock(ctx) {
-  await ctx.route('**://api.github.com/**', (r) => {
+  await ctx.route('**/api/github/**', (r) => {
     const url = r.request().url();
     const json = (b) =>
       r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(b) });

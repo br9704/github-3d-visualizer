@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect } from 'react'
 import axios from 'axios'
+import { GITHUB_API } from '../utils/githubApi'
 import '../styles/Autocomplete.css'
 
 const CACHE_TTL = 5 * 60 * 1000 // 5 minutes
@@ -30,8 +31,12 @@ export default function UsernameAutocomplete({ value, onChange, onSelect }) {
       }
 
       try {
+        // Through the proxy, like every other GitHub call. The user-search
+        // endpoint has its own stricter limit (10/min unauthenticated), which
+        // is exactly the kind of thing the proxy's token and edge cache exist
+        // to absorb.
         const response = await axios.get(
-          `https://api.github.com/search/users?q=${query}&per_page=5`
+          `${GITHUB_API}/search/users?q=${encodeURIComponent(query)}&per_page=5`
         )
 
         const users = response.data.items.slice(0, 5).map((user) => ({

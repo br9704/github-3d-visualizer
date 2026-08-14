@@ -21,7 +21,8 @@
     "histcmp": "node scripts/histcmp.mjs",
     "motion-check": "node scripts/motion-check.mjs",
     "perf": "node scripts/perf.mjs",
-    "capture": "node scripts/capture.mjs"
+    "capture": "node scripts/capture.mjs",
+    "test": "node --test \"tests/**/*.test.mjs\""
   },
   "dependencies": {
     "axios": "^1.6.2",

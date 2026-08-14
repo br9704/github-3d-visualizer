@@ -8,7 +8,7 @@ Any GitHub profile rendered as a 3D universe. Each repository becomes an icosahe
 
 *Recorded from the running app. The profile is a deterministic fixture, not a real account — so the asset stays reproducible and does not put someone else's repository names in this README.*
 
-> **Status:** not yet deployed. The app currently calls the GitHub REST API directly from the browser with no token, so it shares the 60 req/hour unauthenticated per-IP limit. A server-side token proxy lands before deployment — see [Roadmap](#roadmap).
+> **Status:** not yet deployed. The token proxy is built and tested; deployment and the PAT are the remaining step — see [Roadmap](#roadmap).
 
 | | |
 |---|---|
@@ -96,6 +96,22 @@ Measured on an **Apple M4 Pro** at 1440×900 in a GPU-backed Chromium window, 24
 
 ---
 
+## The GitHub proxy
+
+The client never calls `api.github.com`. Every request goes through this app's own `/api/github/*` ([`api/github/[...path].js`](api/github/%5B...path%5D.js)), which:
+
+- attaches a **fine-grained PAT on the outbound fetch only** — 5,000 requests/hour instead of the 60/hour unauthenticated per-IP limit. The token never reaches the browser, never appears in a response header or body.
+- **caches at the edge**: `Vercel-CDN-Cache-Control: s-maxage=1800, stale-while-revalidate=86400`, with a 60-second browser TTL. Because the *incoming* request carries no `Authorization` header, responses are safely cacheable — and since demo traffic concentrates on a handful of famous usernames, the cache, not the rate limiter, is what protects the token's quota. A cache hit costs zero.
+- **never caches errors** (`Cache-Control: no-store`), so a 404 for a username that is about to exist does not stick.
+- **refuses anything outside an allowlist** of the four endpoints this app uses. Without that, `/api/github/<anything>` would be an open proxy authenticating with our token.
+- **bounds every forwarded query parameter** and drops unknown ones.
+- **passes `x-ratelimit-reset` through**, which is what lets the UI say `rate limited — try again in 4m` rather than "try again later".
+- **throttles per IP** via Vercel's WAF (available on every plan, including Hobby), failing *open* — the cache is the primary defence and a throttle outage should not take the demo down.
+
+Behaviour is covered by [`tests/proxy.test.mjs`](tests/proxy.test.mjs) — 13 tests against a mocked upstream, so they never touch real GitHub and need no token.
+
+---
+
 ## Tech stack
 
 | Layer | Technology | Version |
@@ -129,7 +145,7 @@ npm run build      # production build to dist/
 npm run preview    # serve the production build locally
 ```
 
-**Note on rate limits:** unauthenticated GitHub API requests are limited to 60 per hour per IP address, shared across everyone behind that IP. A few searches can exhaust it. This is the problem the token proxy on the roadmap solves.
+**Note on rate limits in local development:** `npm run dev` and `npm run preview` proxy `/api/github` straight to GitHub *without* a token, so they share the 60 requests/hour unauthenticated per-IP limit and a few searches can exhaust it. The deployed build routes the same path through the serverless function below, which authenticates and caches.
 
 ---
 

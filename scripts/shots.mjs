@@ -61,7 +61,7 @@ const user = makeUser('fixture', REPO_COUNT);
 
 /** Serve every api.github.com call from the fixtures. */
 async function mockGitHub(context) {
-  await context.route('**://api.github.com/**', async (route) => {
+  await context.route('**/api/github/**', async (route) => {
     const url = route.request().url();
     const json = (body) =>
       route.fulfill({

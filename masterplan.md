@@ -5,7 +5,7 @@
 Status keys, marked live as work happens — never batched:
 `[ ]` not started · `[~]` in progress · `[x]` complete · `[⏭]` deferred (always with a one-line reason)
 
-**Current sprint pointer:** S6
+**Current sprint pointer:** S7
 
 ---
 
@@ -259,15 +259,25 @@ Implements `MOTION.md` § "The empty state IS the hero" and § "Search → unive
 
 ---
 
-## S6 — Visual proof `[ ]`
+## S6 — Visual proof `[x]`
 
 For a visual project this is worth more than any feature.
 
-- [ ] Real screenshots at both viewports, committed to `docs/`.
-- [ ] A recording of the entrance sequence — `MOTION.md` requires the README hero to be the recording, not a static render.
-- [ ] README hero replaced.
+- [x] Real screenshots at both viewports, at **deviceScaleFactor 2** so they are not soft on a retina display, committed to `docs/`.
+- [x] A recording of the entrance sequence — `docs/hero.gif`, 60 frames, captured by driving the real app.
+- [x] README hero replaced, plus a two-up of cold load vs loaded profile.
 
-**Acceptance:** `via.placeholder.com` gone from the repo; hero renders in GitHub's markdown viewer.
+**Acceptance:** ✅ `via.placeholder.com` gone; hero is a GIF, which GitHub renders inline (it does not play webm, which is why this is not the video Playwright can record).
+
+**As-shipped delta:**
+- `scripts/capture.mjs` records the **whole story** — ambient galaxy, typing, dissolve, entrance, settle — rather than just the final state.
+- **Two-pass ffmpeg palette.** A single global palette bands the warm-black ground badly, and banding is the one thing that would make the asset look cheap.
+- **The captured profile is the deterministic fixture, not a real account.** A real username would put someone else's repository names in this project's README and make the asset impossible to reproduce once their profile changed.
+- **New guard:** every local image the README references must exist. A README pointing at a missing screenshot is the same failure class as the placeholder hero it replaced.
+- `docs/` is 2.7 MB total.
+- Commit `dea0f4c`.
+
+**Deferred:** the S2 cosmetic items (a metadata line in the body font, one wrapping radio label) are still open; they are cosmetic and did not warrant re-capturing the assets. Carried to S10's polish pass.
 
 ---
 

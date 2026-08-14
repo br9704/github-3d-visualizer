@@ -83,9 +83,25 @@ async function newPage({ reduced = false, route } = {}) {
     viewport: { width: 1440, height: 900 },
     reducedMotion: reduced ? 'reduce' : 'no-preference'
   });
-  if (route) await ctx.route('**://api.github.com/**', route);
+  if (route) await ctx.route('**/api/github/**', route);
   const page = await ctx.newPage();
   return { ctx, page };
+}
+
+/**
+ * Wait for the app to actually mount before driving it.
+ *
+ * Without this, a slow first paint surfaces as a 30s `page.fill` timeout deep
+ * in a later check, which reads like a product bug rather than a cold start.
+ */
+async function ready(page) {
+  await page
+    .waitForSelector('input[aria-label="GitHub username"]', { timeout: 15000 })
+    .catch(() => {
+      throw new Error(
+        'the app never mounted — is the preview server running on ' + BASE + '?'
+      );
+    });
 }
 
 /* ── 1. Cold load: moving within 2s, no input ────────────────────────────── */
@@ -121,6 +137,7 @@ async function newPage({ reduced = false, route } = {}) {
       r.fulfill({ status: 404, contentType: 'application/json', body: '{"message":"Not Found"}' })
   });
   await page.goto(BASE, { waitUntil: 'networkidle' });
+  await ready(page);
   await page.fill('input[aria-label="GitHub username"]', 'nobody-here-at-all');
   await page.keyboard.press('Enter');
   await page.waitForTimeout(1500);
@@ -153,6 +170,7 @@ async function newPage({ reduced = false, route } = {}) {
       })
   });
   await page.goto(BASE, { waitUntil: 'networkidle' });
+  await ready(page);
   await page.fill('input[aria-label="GitHub username"]', 'torvalds');
   await page.keyboard.press('Enter');
   await page.waitForTimeout(1500);
@@ -228,6 +246,7 @@ async function newPage({ reduced = false, route } = {}) {
     }
   });
   await page.goto(BASE, { waitUntil: 'networkidle' });
+  await ready(page);
   await page.fill('input[aria-label="GitHub username"]', 'fixture');
   await page.keyboard.press('Enter');
   await page.waitForTimeout(6000);

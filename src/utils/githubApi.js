@@ -1,7 +1,20 @@
 import axios from 'axios'
 import { getLanguageInfo } from './colors'
 
-const GITHUB_API = 'https://api.github.com'
+/**
+ * Every request goes through this app's own /api/github proxy, never to
+ * api.github.com directly.
+ *
+ * The proxy attaches a server-side PAT on the outbound fetch, which lifts the
+ * limit from GitHub's 60 requests/hour UNAUTHENTICATED per-IP cap to 5,000/hour
+ * — and caches at the edge, so repeat traffic on the same username costs no
+ * quota at all. See api/github/[...path].js.
+ *
+ * In development and in `vite preview`, Vite proxies the same path straight to
+ * api.github.com (unauthenticated), so there is exactly ONE code path here
+ * rather than a branch that only the deployed build exercises.
+ */
+export const GITHUB_API = import.meta.env?.VITE_GITHUB_API ?? '/api/github'
 
 const axiosInstance = axios.create({
   timeout: 8000,

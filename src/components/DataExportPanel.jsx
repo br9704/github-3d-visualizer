@@ -140,9 +140,12 @@ export default function DataExportPanel({ repos, username }) {
   const csvSize = dataExporter.estimateExportSize(repos, 'csv')
 
   return (
-    <div className="data-export-panel">
-      <div
+    <div className="data-export-panel" data-hud-module>
+      <button
+        type="button"
         className="export-header"
+        data-hud-head
+        aria-expanded={expanded}
         onClick={() => setExpanded(!expanded)}
       >
         <div className="export-title export-header-title">
@@ -150,7 +153,7 @@ export default function DataExportPanel({ repos, username }) {
           <span>export</span>
         </div>
         <span className="toggle">{expanded ? '▾' : '▸'}</span>
-      </div>
+      </button>
 
       {expanded && (
         <div className="export-content">

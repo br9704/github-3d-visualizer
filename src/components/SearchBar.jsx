@@ -13,6 +13,7 @@ import '../styles/SearchBar.css'
  * @param {boolean} props.loading - Whether a search is in progress
  * @param {string} props.loadingPhase - Human-readable phase of the current fetch
  * @param {string} props.error - Error message to display, if any
+ * @param {boolean} [props.compact] - Docked under the header once a scene exists
  * @param {function(): void} [props.onFirstKeystroke] - Fired once, when the
  *   visitor first types. MOTION.md dims the ambient galaxy on this signal.
  */
@@ -21,6 +22,7 @@ export default function SearchBar({
   loading,
   loadingPhase,
   error,
+  compact = false,
   onFirstKeystroke
 }) {
   const [username, setUsername] = useState('')
@@ -56,7 +58,7 @@ export default function SearchBar({
   const message = error || localError
 
   return (
-    <div className="search">
+    <div className="search" data-compact={compact}>
       <div className="search-row">
         <span className="search-prompt" aria-hidden="true">
           &gt;
@@ -106,7 +108,7 @@ export default function SearchBar({
           </p>
         )}
 
-        {!loading && !message && (
+        {!loading && !message && !compact && (
           <p className="sig-say search-hint">enter a username &mdash; try torvalds</p>
         )}
       </div>

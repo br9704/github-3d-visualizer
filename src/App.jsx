@@ -20,6 +20,7 @@ import StatsDisplay from './components/StatsDisplay'
 import ExportShare from './components/ExportShare'
 import Pagination from './components/Pagination'
 import Header from './components/Header'
+import HudLayout from './components/HudLayout'
 import KeyboardHelpModal from './components/KeyboardHelpModal'
 import FilterSetsManager from './components/FilterSetsManager'
 import DataExportPanel from './components/DataExportPanel'
@@ -312,8 +313,103 @@ function App() {
         />
       </div>
 
-      {/* ── HUD layer (z-index 10+) ─────────────────────────────────────── */}
-      <div className="hud">
+      {/* ── HUD layer (z-index 10+) ───────────────────────────────────────
+          HudLayout owns every fixed position. No component below it sets
+          `position: fixed` for itself — see src/styles/HudLayout.css. */}
+      <HudLayout
+        compact={hasScene}
+        search={
+          <SearchBar
+            onSearch={handleSearch}
+            loading={loading}
+            loadingPhase={loadingPhase}
+            error={error}
+            compact={hasScene}
+          />
+        }
+        railLeft={
+          <>
+            <StatsDisplay
+              loading={loading}
+              error={error}
+              repoCount={repos.length}
+              username={username}
+              starCount={starCount}
+              renderMs={renderMs}
+            />
+
+            <UserPreferencesPanel onPreferencesChange={handlePreferencesChange} />
+
+            {hasScene && (
+              <>
+                <FilterSetsManager
+                  currentFilters={{
+                    languages: filteredLanguage ? [filteredLanguage] : []
+                  }}
+                  onLoadSet={handleLoadFilterSet}
+                />
+
+                <DataExportPanel repos={repos} username={username} />
+
+                <AdvancedHeatmaps repos={repos} />
+
+                {/* Share & Annotate (local) — localStorage + URL params,
+                    no server, no multi-user sync. */}
+                <CollaborationPanel
+                  username={username}
+                  currentLanguage={filteredLanguage}
+                  currentMinStars={prefs.filters.minStars}
+                  currentColorScheme={colorScheme}
+                  selectedRepo={selectedRepo}
+                  onLoadSnapshot={handleLoadSnapshot}
+                />
+              </>
+            )}
+          </>
+        }
+        railRight={
+          hasScene ? (
+            <>
+              {detectedLanguages.length > 0 && (
+                <LanguageFilter
+                  languages={detectedLanguages}
+                  onLanguageChange={handleLanguageFilter}
+                />
+              )}
+              <ColorLegend languages={detectedLanguages} />
+            </>
+          ) : null
+        }
+        dockBottom={
+          hasScene ? (
+            <>
+              {totalRepos > REPOS_PER_PAGE ? (
+                <Pagination
+                  currentPage={currentPage}
+                  totalRepos={totalRepos}
+                  reposPerPage={REPOS_PER_PAGE}
+                  onLoadMore={handleLoadMore}
+                  isLoading={loading}
+                  maxRepos={MAX_REPOS}
+                />
+              ) : (
+                <span />
+              )}
+
+              <ExportShare
+                repos={positionedRepos}
+                username={username}
+                filters={{ language: filteredLanguage }}
+              />
+            </>
+          ) : null
+        }
+        drawer={
+          selectedRepo && (
+            <RepoDetails repo={selectedRepo} onClose={() => setSelectedRepo(null)} />
+          )
+        }
+      >
         <Header
           status={loading ? 'busy' : hasScene ? 'live' : 'idle'}
           repoCount={repos.length}
@@ -330,78 +426,7 @@ function App() {
           {loading && loadingPhase}
           {!loading && hasScene && `Loaded ${repos.length} repositories for ${username}`}
         </div>
-
-        <SearchBar
-          onSearch={handleSearch}
-          loading={loading}
-          loadingPhase={loadingPhase}
-          error={error}
-        />
-
-        <StatsDisplay
-          loading={loading}
-          error={error}
-          repoCount={repos.length}
-          username={username}
-          starCount={starCount}
-          renderMs={renderMs}
-        />
-
-        <UserPreferencesPanel onPreferencesChange={handlePreferencesChange} />
-
-        {hasScene && (
-          <>
-            <FilterSetsManager
-              currentFilters={{ languages: filteredLanguage ? [filteredLanguage] : [] }}
-              onLoadSet={handleLoadFilterSet}
-            />
-
-            <DataExportPanel repos={repos} username={username} />
-
-            <AdvancedHeatmaps repos={repos} />
-
-            {/* Share & Annotate (local) — localStorage + URL params, no server */}
-            <CollaborationPanel
-              username={username}
-              currentLanguage={filteredLanguage}
-              currentMinStars={prefs.filters.minStars}
-              currentColorScheme={colorScheme}
-              selectedRepo={selectedRepo}
-              onLoadSnapshot={handleLoadSnapshot}
-            />
-
-            <ColorLegend languages={detectedLanguages} />
-
-            <ExportShare
-              repos={positionedRepos}
-              username={username}
-              filters={{ language: filteredLanguage }}
-            />
-
-            {totalRepos > REPOS_PER_PAGE && (
-              <Pagination
-                currentPage={currentPage}
-                totalRepos={totalRepos}
-                reposPerPage={REPOS_PER_PAGE}
-                onLoadMore={handleLoadMore}
-                isLoading={loading}
-                maxRepos={MAX_REPOS}
-              />
-            )}
-          </>
-        )}
-
-        {username && detectedLanguages.length > 0 && (
-          <LanguageFilter
-            languages={detectedLanguages}
-            onLanguageChange={handleLanguageFilter}
-          />
-        )}
-
-        {selectedRepo && (
-          <RepoDetails repo={selectedRepo} onClose={() => setSelectedRepo(null)} />
-        )}
-      </div>
+      </HudLayout>
     </div>
   )
 }

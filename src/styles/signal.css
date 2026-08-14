@@ -198,7 +198,7 @@ a:hover {
 }
 
 *::-webkit-scrollbar-thumb:hover {
-  background: var(--text-dim);
+  background: var(--steel);
 }
 
 /* ─────────────────────────────────────────────────────────────────────────
@@ -424,7 +424,7 @@ a:hover {
   height: 4px;
   flex: none;
   border-radius: 0;
-  background: var(--text-dim);
+  background: var(--steel);
 }
 
 .sig-dot[data-state='on'] {

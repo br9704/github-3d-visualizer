@@ -1,17 +1,12 @@
 /* Pagination — bottom-centre readout with one action. */
 
 .pager {
-  position: fixed;
-  bottom: var(--s4);
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: var(--z-panel);
   display: flex;
   align-items: center;
   gap: var(--s3);
   padding: var(--s2) var(--s3);
-  background: rgba(5, 5, 5, 0.72);
-  backdrop-filter: blur(6px);
+  background: rgba(5, 5, 5, 0.78);
+  backdrop-filter: blur(8px);
   border: var(--hair) solid var(--hairline);
   border-radius: var(--radius);
 }

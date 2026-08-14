@@ -8,18 +8,16 @@
    Container
    ======================================== */
 .user-preferences-panel {
-  position: fixed;
-  left: 20px;
-  top: 50%;
-  transform: translateY(-50%);
+
+
   width: 340px;
   max-height: 85vh;
-  background: rgba(11, 10, 9, 0.94));
-  border: 1px solid var(--steel));
+  background: rgba(11, 10, 9, 0.94);
+  border: 1px solid var(--steel);
   border-radius: var(--radius);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
-  z-index: 200;
+
   overflow: hidden;
   font-family: var(--font-mono);
   color: var(--text-primary, var(--text-primary));
@@ -33,7 +31,7 @@
   align-items: center;
   justify-content: space-between;
   padding: 14px 16px;
-  background: transparent);
+  background: transparent;
   cursor: pointer;
   user-select: none;
   border-bottom: var(--hair) solid var(--hairline);
@@ -178,7 +176,7 @@
   left: 2px;
   width: 14px;
   height: 14px;
-  background: var(--text-primary);
+  background: var(--surface-raised);
   border-radius: var(--radius);
   transition: transform 0.2s var(--ease);
   pointer-events: none;
@@ -382,11 +380,9 @@
    ======================================== */
 @media (max-width: 768px) {
   .user-preferences-panel {
-    position: fixed;
-    left: 10px;
-    top: auto;
-    bottom: 10px;
-    transform: none;
+
+
+
     width: calc(100vw - 20px);
     max-height: 60vh;
   }

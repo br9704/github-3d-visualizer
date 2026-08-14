@@ -5,7 +5,7 @@
 Status keys, marked live as work happens — never batched:
 `[ ]` not started · `[~]` in progress · `[x]` complete · `[⏭]` deferred (always with a one-line reason)
 
-**Current sprint pointer:** S1
+**Current sprint pointer:** S2
 
 ---
 
@@ -69,7 +69,7 @@ Fast, and it stops the repo actively hurting a reader.
 
 ---
 
-## S1 — SIGNAL foundation `[ ]`
+## S1 — SIGNAL foundation `[x]`
 
 The sprint that makes the page stop being white. Design system is **inherited, never invented** — palette and rules from `~/bruno-portfolio/CLAUDE.md` → "Redesign Design Decisions (2026-07 · SIGNAL)".
 
@@ -78,15 +78,41 @@ The sprint that makes the page stop being white. Design system is **inherited, n
 --text-dim #55504a · --amber #ffb000 (THE one accent) · --steel #2c2925 · --hairline #1b1916
 ```
 
-- [ ] New `src/styles/signal.css`: palette, reset, type scale. `DM Sans` + `JetBrains Mono` self-hosted via `@fontsource-variable` — no external font request.
-- [ ] **Delete the light theme entirely.** Remove `[data-theme='light']` from `App.css`, delete `src/contexts/ThemeContext.jsx`, remove the theme toggle from `Header.jsx`. One theme, warm black.
-- [ ] **Fix the layering bug.** Canvas → `z-index: 0`; a `.hud` stacking context above it.
-- [ ] `Header` → instrument bar: `</github universe>` label, mono, hairline rule, corner micro-readout.
-- [ ] **Strip every emoji** across all 14 components → mono glyphs and bracket buttons (`[visualize →]`, `>`, `┌─┐`, `[████░░░]`).
-- [ ] Search / loading / error states in terminal voice: `> enter a username — try torvalds`, `> user not found`, `> rate limited — try again in 4m`.
-- [ ] Global motion rules: ease-out or linear only, nothing over 600ms, no bounce, no spring. `prefers-reduced-motion` → static.
+- [x] New `src/styles/signal.css`: palette, reset, type scale, motion tokens, and a primitive vocabulary (`.sig-panel`, `.sig-btn`, `.sig-field`, `.sig-say`, `.sig-bar`, `.sig-data`). `DM Sans` + `JetBrains Mono` self-hosted via `@fontsource-variable` — no external font request.
+- [x] **Delete the light theme entirely.** `src/contexts/ThemeContext.jsx` deleted, 12 `[data-theme="light"]` blocks stripped, theme toggle removed from `Header.jsx`. One theme, warm black.
+- [x] **Fix the layering bug.** Canvas → `.scene` at `z-index: 0`; all chrome in a `.hud` stacking context above it.
+- [x] `Header` → instrument bar: `</github universe>` label, status dot, corner micro-readout (`STANDBY` / `FETCHING` / `N NODES`), hairline rule.
+- [x] **Strip every emoji**: 87 replaced across 14 components with monospace glyphs and bracket buttons.
+- [x] Search / loading / error states in terminal voice: `> enter a username — try torvalds`, `> no public repositories`, terminal fill bars instead of spinners.
+- [x] Global motion rules: ease-out or linear only, nothing over 600ms. `prefers-reduced-motion` → static everything.
 
-**Acceptance:** screenshots at both sizes show a styled, branded warm-black page. `rg` emoji in `src/` → 0. `rg` `border-radius` > 2px → 0. No `[data-theme='light']` anywhere. No gradients, no shadows, no colour beyond amber.
+**Acceptance:** ✅ screenshots at both sizes, in **both** the empty and populated states, show a styled, branded warm-black page with zero console errors. All 8 guards green.
+
+**As-shipped delta:**
+
+*Three bugs found by looking at the app in a browser, none of which a build could catch:*
+
+1. **The canvas painted over the header.** `Visualizer` mounted it `position: fixed; inset: 0` with **no `z-index`**. The header was never missing — it was covered. This is the direct cause of "no header, no branding" in the audit.
+2. **A WebGL failure showed nothing at all.** `useThreeScene` has always detected a missing WebGL context and set `initError` — and **nothing ever rendered it**. A visitor without WebGL got a silent empty page. `Visualizer` now prints it as text.
+3. **Sphere size was applied twice.** `IcosahedronGeometry(size, detail)` built the geometry at radius `size`, *and* the mesh was scaled by `size` — so the rendered radius was **size²**. A 0.3 repo shrank to 0.09 (invisible); a 4.0 repo ballooned to 16 and swallowed the scene. Replaced with one shared **unit-radius** geometry plus per-mesh scale, which is also the form S5 needs for `InstancedMesh`. *Pulled forward from S5* — every screenshot gate from S2 on depends on the scene being legible.
+
+*Why nobody had seen (2) and (3):*
+
+**Headless Chromium has no WebGL at all** — `canvas.getContext('webgl2')` returns `null`. Every automated check ever run against this project was screenshotting an empty canvas and passing. `scripts/shots.mjs` now launches with `--use-gl=angle --use-angle=swiftshader --enable-unsafe-swiftshader`. This is the single most important finding of the sprint: without it, every remaining gate would verify nothing.
+
+*Verification harness built (reused by every later sprint, and by CI in S9):*
+- `scripts/guards.mjs` (`npm run guards`) — 8 mechanical guards: no emoji, radius ≤2px, no light theme, no shadows, SIGNAL-palette-only hex, every `var(--x)` defined, README claims backed, no token literal.
+- `scripts/shots.mjs` (`npm run shots`) — real browser at both viewports, **GitHub mocked from `tests/fixtures/github.mjs`**, so verification never touches the network or the 60 req/hr limit. Captures empty *and* populated states.
+
+*Beyond the plan:*
+- `KeyboardHelpModal` gained the focus trap and `aria-modal` it never had — so "focus-trapped dialogs" is now true of both dialogs, not one.
+- The shortcut list was rewritten to match handlers that actually exist (the old list advertised arrow-key rotation, which nothing implements).
+- `ColorLegend` deduped: several raw languages collapse to the display name "Other", which was rendering twice.
+- `RepoDetails` moved from inline styles to a stylesheet; it was the last component with 8px radii.
+- Measured: CSS 49.17 kB → 60.77 kB raw (8.69 → 11.69 kB gzip). It grew because SIGNAL adds two self-hosted variable fonts and a primitive layer; S2 removes the per-panel duplication that offsets it.
+- Commit `c3fd230`.
+
+**Deferred to S2:** panels still overlap and the search card still sits over the scene after a successful search — both are layout, which is exactly what `HudLayout` is for. Camera framing leaves the cluster high-left with dead space; that is scene work, deferred to S4.
 
 ---
 

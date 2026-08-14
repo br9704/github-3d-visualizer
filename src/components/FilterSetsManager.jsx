@@ -174,9 +174,12 @@ export default function FilterSetsManager({ currentFilters, onLoadSet }) {
   const userSets = sets.filter(s => !s.isDefault)
 
   return (
-    <div className="filter-sets-manager">
-      <div 
+    <div className="filter-sets-manager" data-hud-module>
+      <button
+        type="button"
         className="filter-sets-header"
+        data-hud-head
+        aria-expanded={expanded}
         onClick={() => setExpanded(!expanded)}
       >
         <div className="filter-sets-title filter-sets-header-title">
@@ -185,7 +188,7 @@ export default function FilterSetsManager({ currentFilters, onLoadSet }) {
           <span className="badge">{userSets.length}</span>
         </div>
         <span className="toggle">{expanded ? '▾' : '▸'}</span>
-      </div>
+      </button>
 
       {expanded && (
         <div className="filter-sets-content">

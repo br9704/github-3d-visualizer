@@ -1,0 +1,321 @@
+/**
+ * HudLayout.css — the only file allowed to position chrome.
+ *
+ * Two jobs:
+ *   1. define the four regions (rail-left, rail-right, dock-bottom, search)
+ *   2. NEUTRALISE the `position: fixed` that eleven panels each declared for
+ *      themselves, so a panel dropped into a region flows inside it
+ *
+ * Rule for future work: a component must not set `position: fixed`. If it
+ * needs a place on screen, it gets a region here.
+ */
+
+/* ── Regions ──────────────────────────────────────────────────────────── */
+
+.hud-rail {
+  position: fixed;
+  top: 48px;
+  bottom: 52px;
+  z-index: var(--z-panel);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s2);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-bottom: var(--s2);
+}
+
+.hud-rail--left {
+  left: var(--s4);
+  width: 296px;
+}
+
+.hud-rail--right {
+  right: var(--s4);
+  width: 208px;
+  align-items: stretch;
+}
+
+.hud-dock {
+  position: fixed;
+  left: var(--s4);
+  right: var(--s4);
+  bottom: var(--s4);
+  z-index: var(--z-panel);
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--s3);
+  pointer-events: none;
+}
+
+.hud-dock > * {
+  pointer-events: auto;
+}
+
+/* ── Search ───────────────────────────────────────────────────────────────
+   Two states. Before a scene exists the search IS the product, so it sits
+   centred as the hero. Once repos are on screen it docks under the header,
+   compact, out of the scene's way. */
+
+.hud-search {
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  z-index: var(--z-panel);
+  width: min(460px, calc(100vw - var(--s6)));
+  transition: top var(--t-slow) var(--ease),
+    transform var(--t-slow) var(--ease),
+    width var(--t-slow) var(--ease);
+}
+
+.hud-search[data-docked='true'] {
+  top: 48px;
+  transform: translate(-50%, 0);
+  width: min(400px, calc(100vw - var(--s6)));
+}
+
+/* ── Key hints ────────────────────────────────────────────────────────── */
+
+.hud-keyhint {
+  position: fixed;
+  left: 50%;
+  bottom: var(--s2);
+  transform: translateX(-50%);
+  z-index: var(--z-hud);
+  color: var(--text-dim);
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+/* ═════════════════════════════════════════════════════════════════════════
+   Neutralise per-panel positioning.
+
+   These five panels each hardcoded `position: fixed` plus offsets and a
+   transform. Inside a rail they must simply be blocks.
+   ═════════════════════════════════════════════════════════════════════════ */
+
+.hud-rail > .user-preferences-panel,
+.hud-rail > .filter-sets-manager,
+.hud-rail > .data-export-panel,
+.hud-rail > .advanced-heatmaps,
+.hud-rail > .collaboration-panel,
+.hud-rail > .stats,
+.hud-rail > .legend,
+.hud-rail > .langf,
+.hud-dock > .pager,
+.hud-dock > .export-share-buttons {
+  position: static;
+  inset: auto;
+  transform: none;
+  width: 100%;
+  max-width: none;
+  max-height: none;
+  margin: 0;
+  flex: none;
+}
+
+/* The rails scroll as a whole; individual panels must not trap the scroll. */
+.hud-rail > * {
+  overflow: visible;
+}
+
+/* Dock children keep their intrinsic width. */
+.hud-dock > .pager,
+.hud-dock > .export-share-buttons {
+  width: auto;
+}
+
+/* The language filter's dropdown is absolutely positioned against itself. */
+.hud-rail > .langf {
+  position: relative;
+}
+
+/* ── Module chrome ────────────────────────────────────────────────────────
+   Every rail child reads as one instrument module: hairline box, square,
+   translucent over the scene. */
+
+.hud-rail > .user-preferences-panel,
+.hud-rail > .filter-sets-manager,
+.hud-rail > .data-export-panel,
+.hud-rail > .advanced-heatmaps,
+.hud-rail > .collaboration-panel {
+  background: rgba(5, 5, 5, 0.78);
+  backdrop-filter: blur(8px);
+  border: var(--hair) solid var(--hairline);
+  border-radius: var(--radius);
+}
+
+/* Keyboard focus lands on a module header. */
+[data-hud-head]:focus-visible {
+  outline: var(--hair) solid var(--amber);
+  outline-offset: -1px;
+}
+
+/* ── Responsive ───────────────────────────────────────────────────────────
+   At 900px the right rail folds away (its content is a legend, which is
+   redundant when the scene is small). At 640px the left rail becomes a
+   bottom sheet so the scene keeps the whole viewport. */
+
+@media (max-width: 1100px) {
+  .hud-rail--left {
+    width: 260px;
+  }
+
+  .hud-rail--right {
+    width: 180px;
+  }
+}
+
+@media (max-width: 900px) {
+  .hud-rail--right {
+    display: none;
+  }
+}
+
+@media (max-width: 640px) {
+  /* The left rail becomes a bottom sheet, so the scene keeps the upper
+     viewport. Its height is fixed rather than max-height, so the dock above
+     it has a stable edge to sit on. */
+  .hud-rail--left {
+    top: auto;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    width: auto;
+    height: 46vh;
+    padding: var(--s2);
+    background: rgba(5, 5, 5, 0.9);
+    backdrop-filter: blur(8px);
+    border-top: var(--hair) solid var(--hairline);
+  }
+
+  /* Directly above the sheet — never over the search. */
+  .hud-dock {
+    top: auto;
+    bottom: calc(46vh + var(--s2));
+    left: var(--s3);
+    right: var(--s3);
+  }
+
+  /* Centring by transform overflowed the viewport once the row wrapped.
+     Explicit insets cannot overflow. */
+  .hud-search,
+  .hud-search[data-docked='true'] {
+    left: var(--s3);
+    right: var(--s3);
+    width: auto;
+    transform: none;
+  }
+
+  .hud-search {
+    top: 38%;
+  }
+
+  .hud-search[data-docked='true'] {
+    top: 48px;
+  }
+
+  .hud-keyhint {
+    display: none;
+  }
+}
+
+/* ── Panel headers become buttons ─────────────────────────────────────────
+   The five feature panels used clickable <div>s, which no keyboard could
+   reach. They are <button>s now, so the browser's own focus order works and
+   j/k navigation has something real to move between. */
+
+.prefs-header,
+.export-header,
+.heatmaps-header,
+.filter-sets-header,
+.collab-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s2);
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+  user-select: none;
+}
+
+/* Count badges — hairline, not a filled chip. */
+.filter-sets-title .badge,
+.collab-header-badges .collab-badge {
+  padding: 0 var(--s1);
+  background: transparent;
+  border: var(--hair) solid var(--hairline);
+  border-radius: var(--radius);
+  font-family: var(--font-mono);
+  font-size: var(--fs-micro);
+  letter-spacing: 0.1em;
+  color: var(--text-dim);
+}
+
+/* ── Panel body typography ────────────────────────────────────────────────
+   The five feature panels each shipped their own sans-serif, title-case
+   sub-headings. Inside an instrument they read as mono lowercase. */
+
+.hud-rail [data-hud-module] h3,
+.hud-rail [data-hud-module] h4,
+.hud-rail [data-hud-module] h5,
+.hud-rail [data-hud-module] label {
+  font-family: var(--font-mono);
+  font-size: var(--fs-label);
+  font-weight: 400;
+  letter-spacing: 0.06em;
+  text-transform: lowercase;
+  color: var(--text-secondary);
+}
+
+/* Tab rows must wrap rather than clip — four export tabs did not fit 296px,
+   and overflow-x:auto silently scrolled the earlier ones out of sight. */
+.export-tabs,
+.collab-tabs,
+.heatmap-tabs {
+  flex-wrap: wrap;
+  overflow: visible;
+  border-bottom-width: var(--hair);
+}
+
+.export-tabs .tab,
+.collab-tabs .tab {
+  padding: var(--s1) var(--s2);
+  font-family: var(--font-mono);
+  font-size: var(--fs-label);
+  font-weight: 400;
+  letter-spacing: 0.06em;
+  border-bottom-width: 2px;
+  margin-bottom: -1px;
+}
+
+/* ── Native controls ──────────────────────────────────────────────────────
+   Radios and checkboxes kept the browser's blue. There is no blue in this
+   system. Squared off, amber when set. */
+
+.hud-rail input[type='radio'],
+.hud-rail input[type='checkbox'] {
+  appearance: none;
+  width: 12px;
+  height: 12px;
+  flex: none;
+  border: var(--hair) solid var(--steel);
+  border-radius: 0;
+  background: var(--bg);
+  cursor: pointer;
+  transition: border-color var(--t-fast) var(--ease),
+    background-color var(--t-fast) var(--ease);
+}
+
+.hud-rail input[type='radio']:checked,
+.hud-rail input[type='checkbox']:checked {
+  border-color: var(--amber);
+  background: var(--amber);
+}
+
+.hud-rail input[type='range'] {
+  accent-color: var(--amber);
+}

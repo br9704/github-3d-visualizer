@@ -367,16 +367,16 @@ export default function UserPreferencesPanel({ onPreferencesChange }) {
   // ─── Main render ──────────────────────────────────────────────────────────
 
   return (
-    <div className="user-preferences-panel">
+    <div className="user-preferences-panel" data-hud-module>
       {/* Collapsible header */}
-      <div className="prefs-header" onClick={() => setExpanded(prev => !prev)}>
+      <button type="button" className="prefs-header" data-hud-head aria-expanded={expanded} onClick={() => setExpanded(prev => !prev)}>
         <div className="prefs-header-title">
           <span>preferences</span>
         </div>
         <div className="prefs-header-actions">
           <span className="prefs-toggle">{expanded ? '▾' : '▸'}</span>
         </div>
-      </div>
+      </button>
 
       {expanded && (
         <div className="prefs-content">

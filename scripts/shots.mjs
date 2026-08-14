@@ -135,6 +135,17 @@ for (const vp of VIEWPORTS) {
     console.log(`  ${full}`);
   }
 
+  // 3 — every rail module expanded, which is where overlap bugs hide
+  if (has('expand')) {
+    const heads = page.locator('[data-hud-head]');
+    const n = await heads.count();
+    for (let i = 0; i < n; i++) await heads.nth(i).click({ timeout: 2000 }).catch(() => {});
+    await page.waitForTimeout(700);
+    const open = path.join(OUT, `${TAG}-${vp.name}-open.png`);
+    await page.screenshot({ path: open, fullPage: false });
+    console.log(`  ${open}`);
+  }
+
   if (errors.length) {
     failed = true;
     console.log(`  ✗ ${vp.name} console errors (${errors.length}):`);

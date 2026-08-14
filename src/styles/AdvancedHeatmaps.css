@@ -8,18 +8,16 @@
    Container & Header
    ======================================== */
 .advanced-heatmaps {
-  position: fixed;
-  right: 20px;
-  top: 50%;
-  transform: translateY(-50%);
+
+
   width: 380px;
   max-height: 85vh;
-  background: rgba(11, 10, 9, 0.94));
-  border: 1px solid var(--steel));
+  background: rgba(11, 10, 9, 0.94);
+  border: 1px solid var(--steel);
   border-radius: var(--radius);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
-  z-index: 200;
+
   overflow: hidden;
   font-family: var(--font-mono);
   color: var(--text-primary, var(--text-primary));
@@ -30,15 +28,15 @@
   align-items: center;
   justify-content: space-between;
   padding: 14px 16px;
-  background: transparent);
+  background: transparent;
   cursor: pointer;
   user-select: none;
-  border-bottom: 1px solid var(--steel));
+  border-bottom: 1px solid var(--steel);
   transition: background 0.2s var(--ease);
 }
 
 .heatmaps-header:hover {
-  background: rgba(255, 176, 0, 0.05));
+  background: rgba(255, 176, 0, 0.05);
 }
 
 .heatmaps-title {
@@ -92,8 +90,8 @@
 
 .heatmap-tabs .tab {
   padding: 6px 10px;
-  background: transparent);
-  border: 1px solid var(--steel));
+  background: transparent;
+  border: 1px solid var(--steel);
   border-radius: var(--radius);
   color: var(--text-secondary, var(--text-secondary));
   cursor: pointer;
@@ -441,11 +439,9 @@
    ======================================== */
 @media (max-width: 768px) {
   .advanced-heatmaps {
-    position: fixed;
-    right: 10px;
-    top: auto;
-    bottom: 10px;
-    transform: none;
+
+
+
     width: calc(100vw - 20px);
     max-height: 60vh;
   }

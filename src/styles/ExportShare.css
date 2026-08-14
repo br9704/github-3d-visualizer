@@ -1,10 +1,6 @@
 /* ExportShare — two bracket buttons, bottom-right, plus a share dialog. */
 
 .export-share-buttons {
-  position: fixed;
-  bottom: var(--s4);
-  right: var(--s4);
-  z-index: var(--z-panel);
   display: flex;
   gap: var(--s2);
 }

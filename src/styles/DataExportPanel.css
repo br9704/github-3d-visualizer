@@ -4,7 +4,7 @@
  */
 
 .data-export-panel {
-  background: var(--text-primary);
+  background: var(--surface-raised);
   border: var(--hair) solid var(--steel);
   border-radius: var(--radius);
   margin-bottom: 16px;
@@ -13,7 +13,7 @@
 }
 
 .data-export-panel.dark-mode {
-  background: rgba(30, 30, 30, 0.95);
+  background: var(--surface-raised);
   border-color: var(--text-dim);
 }
 
@@ -48,7 +48,7 @@
   align-items: center;
   gap: 8px;
   font-weight: 600;
-  color: var(--surface-raised);
+  color: var(--text-primary);
 }
 
 .data-export-panel.dark-mode .export-title {
@@ -97,7 +97,7 @@
 }
 
 .message.message-error {
-  background: var(--text-dim);
+  background: var(--steel);
   color: var(--text-dim);
   border: 1px solid var(--text-dim);
 }
@@ -115,7 +115,7 @@
 }
 
 .data-export-panel.dark-mode .message.message-error {
-  background: var(--text-dim);
+  background: var(--steel);
   color: var(--text-dim);
   border-color: var(--text-primary);
 }
@@ -161,7 +161,7 @@
 }
 
 .tab:hover {
-  color: var(--surface-raised);
+  color: var(--text-primary);
 }
 
 .data-export-panel.dark-mode .tab:hover {
@@ -179,7 +179,7 @@
   flex-direction: column;
   gap: 12px;
   padding: 12px;
-  background: white;
+  background: var(--surface-raised);
   border-radius: var(--radius);
   border: var(--hair) solid var(--steel);
 }
@@ -193,7 +193,7 @@
   margin: 0 0 8px 0;
   font-size: 14px;
   font-weight: 600;
-  color: var(--surface-raised);
+  color: var(--text-primary);
 }
 
 .data-export-panel.dark-mode .export-section h4 {
@@ -219,7 +219,7 @@
 }
 
 .option:hover {
-  background: var(--text-primary);
+  background: var(--surface-raised);
 }
 
 .data-export-panel.dark-mode .option:hover {
@@ -254,17 +254,17 @@
 }
 
 .data-export-panel.dark-mode .toggle-columns-btn {
-  background: var(--text-dim);
+  background: var(--steel);
   border-color: var(--text-dim);
   color: var(--text-primary);
 }
 
 .toggle-columns-btn:hover {
-  background: var(--text-primary);
+  background: var(--surface-raised);
 }
 
 .data-export-panel.dark-mode .toggle-columns-btn:hover {
-  background: var(--text-dim);
+  background: var(--steel);
 }
 
 /* Column Selector */
@@ -298,7 +298,7 @@
   display: flex;
   gap: 12px;
   padding: 8px;
-  background: var(--text-primary);
+  background: var(--surface-raised);
   border-radius: var(--radius);
   font-size: 13px;
   color: var(--text-secondary);
@@ -341,8 +341,8 @@
 /* Export Button */
 .export-btn {
   padding: 10px 14px;
-  background: var(--text-secondary);
-  color: white;
+  background: var(--surface-raised);
+  color: var(--text-primary);
   border: none;
   border-radius: var(--radius);
   cursor: pointer;
@@ -352,7 +352,7 @@
 }
 
 .export-btn:hover {
-  background: var(--text-dim);
+  background: var(--steel);
   transform: translateY(-2px);
 }
 
@@ -391,7 +391,7 @@
 }
 
 .stat-item .value {
-  color: var(--surface-raised);
+  color: var(--text-primary);
   font-weight: 600;
 }
 
@@ -404,7 +404,7 @@
   display: flex;
   gap: 12px;
   padding: 10px;
-  background: white;
+  background: var(--surface-raised);
   border-radius: var(--radius);
   border: var(--hair) solid var(--steel);
   font-size: 12px;

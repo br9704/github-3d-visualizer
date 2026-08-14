@@ -121,6 +121,50 @@ check('only SIGNAL palette hex values in CSS', () => {
   return hits;
 });
 
+// ── 5b. Tokens used in the wrong role ────────────────────────────────────
+// A text token used as a BACKGROUND produces a light box on a dark ground —
+// that is how the export panel ended up with white cards after the S1 colour
+// map, which only knew each colour's text role.
+check('no token used in the wrong role', () => {
+  const hits = [];
+  for (const [p, s] of files(['.css'])) {
+    s.split('\n').forEach((line, i) => {
+      if (/^\s*(\*|\/\/|\/\*)/.test(line)) return;
+      if (/background(-color)?:\s*var\(--text-(primary|secondary)\)/.test(line))
+        hits.push(`${p}:${i + 1}  text token as background — ${line.trim().slice(0, 44)}`);
+      if (/^\s*color:\s*var\(--(bg|surface|surface-raised|hairline)\)/.test(line))
+        hits.push(`${p}:${i + 1}  surface token as text — ${line.trim().slice(0, 44)}`);
+      if (/background(-color)?:\s*(white|#fff\b|#ffffff\b)/i.test(line))
+        hits.push(`${p}:${i + 1}  literal white background`);
+    });
+  }
+  return hits;
+});
+
+// ── 5c. Only HudLayout positions chrome ──────────────────────────────────
+// Eleven components each declaring `position: fixed` is what produced the
+// detached panel and the overlaps. Overlays and the scene are exempt.
+check('only HudLayout positions chrome', () => {
+  const EXEMPT = /HudLayout\.css|Header\.css|App\.css|RepoDetails\.css|KeyboardHelpModal\.css/;
+  const EXEMPT_SEL = /overlay|\.scene|\.hud|\.app::after|dialog|modal|tooltip/i;
+  const hits = [];
+  for (const [p, s] of files(['.css'])) {
+    if (EXEMPT.test(p)) continue;
+    const lines = s.split('\n');
+    lines.forEach((line, i) => {
+      if (!/position:\s*fixed/.test(line)) return;
+      // Look back for the selector this rule belongs to.
+      let sel = '';
+      for (let j = i; j >= 0 && j > i - 12; j--) {
+        if (lines[j].includes('{')) { sel = lines[j]; break; }
+      }
+      if (EXEMPT_SEL.test(sel)) return;
+      hits.push(`${p}:${i + 1}  ${sel.trim().slice(0, 50)}`);
+    });
+  }
+  return hits;
+});
+
 // ── 6. Every CSS custom property resolves ────────────────────────────────
 check('every var(--x) is defined in signal.css', () => {
   const signal = fs.readFileSync('src/styles/signal.css', 'utf8');

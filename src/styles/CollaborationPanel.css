@@ -8,19 +8,10 @@
    Container
    ======================================== */
 .collaboration-panel {
-  position: fixed;
-  bottom: 20px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 480px;
-  max-width: calc(100vw - 24px);
-  max-height: 80vh;
-  background: rgba(11, 10, 9, 0.94));
-  border: 1px solid var(--steel));
+  /* Position is owned by HudLayout. This panel is a rail module. */
+  background: rgba(11, 10, 9, 0.94);
+  border: var(--hair) solid var(--steel);
   border-radius: var(--radius);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  z-index: 200;
   overflow: hidden;
   font-family: var(--font-mono);
   color: var(--text-primary, var(--text-primary));

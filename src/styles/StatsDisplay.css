@@ -1,17 +1,12 @@
 /* StatsDisplay — corner readout, top-left under the instrument bar. */
 
 .stats {
-  position: fixed;
-  top: 56px;
-  left: var(--s4);
-  z-index: var(--z-panel);
   display: flex;
   flex-direction: column;
   gap: var(--s1);
-  min-width: 180px;
   padding: var(--s2) var(--s3);
-  background: rgba(5, 5, 5, 0.72);
-  backdrop-filter: blur(6px);
+  background: rgba(5, 5, 5, 0.78);
+  backdrop-filter: blur(8px);
   border: var(--hair) solid var(--hairline);
   border-radius: var(--radius);
   font-size: var(--fs-label);

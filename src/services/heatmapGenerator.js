@@ -233,13 +233,16 @@ export class HeatmapGenerator {
    * @returns {string} RGBA color string
    */
   static getIntensityColor(intensity) {
+    // Amber phosphor ramp on warm black. The original ramp ran light grey to
+    // near-black, which inverted the reading on a dark ground: the MOST active
+    // repositories rendered closest to invisible.
     const colors = [
-      'rgba(229, 231, 235, 0.5)',  // 0 - light grey
-      'rgba(180, 180, 180, 0.7)',  // 1 - light grey
-      'rgba(140, 140, 140, 0.8)',  // 2 - medium grey
-      'rgba(100, 100, 100, 0.9)',  // 3 - darker grey
-      'rgba(70, 70, 70, 1)',       // 4 - dark grey
-      'rgba(30, 30, 30, 1)'        // 5 - very dark grey
+      'rgba(85, 80, 74, 0.35)',   // 0 - text-dim, barely lit
+      'rgba(143, 99, 0, 0.55)',   // 1 - amber-dim
+      'rgba(191, 132, 0, 0.70)',  // 2
+      'rgba(224, 155, 0, 0.82)',  // 3
+      'rgba(255, 176, 0, 0.92)',  // 4 - amber
+      'rgba(255, 201, 77, 1)'     // 5 - amber-bright
     ]
     return colors[Math.min(5, Math.max(0, Math.floor(intensity)))]
   }

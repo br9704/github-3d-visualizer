@@ -282,9 +282,12 @@ export default function AdvancedHeatmaps({ repos }) {
   }
 
   return (
-    <div className="advanced-heatmaps">
-      <div
+    <div className="advanced-heatmaps" data-hud-module>
+      <button
+        type="button"
         className="heatmaps-header"
+        data-hud-head
+        aria-expanded={expanded}
         onClick={() => setExpanded(!expanded)}
       >
         <div className="heatmaps-title">
@@ -292,7 +295,7 @@ export default function AdvancedHeatmaps({ repos }) {
           <span>heatmaps</span>
         </div>
         <span className="toggle">{expanded ? '▾' : '▸'}</span>
-      </div>
+      </button>
 
       {expanded && (
         <div className="heatmaps-content">

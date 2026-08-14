@@ -419,11 +419,10 @@ export default function CollaborationPanel({
   const totalComments = collaborationService.getTotalCommentCount()
 
   return (
-    <div className="collaboration-panel">
+    <div className="collaboration-panel" data-hud-module>
       {/* Collapsible header */}
-      <div className="collab-header" onClick={() => setExpanded(prev => !prev)}>
+      <button type="button" className="collab-header" data-hud-head aria-expanded={expanded} onClick={() => setExpanded(prev => !prev)}>
         <div className="collab-header-left">
-          <span style={{ fontSize: 16 }}></span>
           <span className="collab-header-title">share &amp; annotate (local)</span>
           <div className="collab-header-badges">
             {snapshots.length > 0 && (
@@ -435,7 +434,7 @@ export default function CollaborationPanel({
           </div>
         </div>
         <span className="collab-toggle">{expanded ? '▾' : '▸'}</span>
-      </div>
+      </button>
 
       {expanded && (
         <>

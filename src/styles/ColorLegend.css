@@ -1,16 +1,11 @@
 /* ColorLegend — the language key. Swatches are data, everything else is grey. */
 
 .legend {
-  position: fixed;
-  top: 96px;
-  right: var(--s4);
-  z-index: var(--z-panel);
-  max-width: 168px;
-  max-height: 40vh;
+  max-height: 46vh;
   overflow-y: auto;
   padding: var(--s2) var(--s3);
-  background: rgba(5, 5, 5, 0.72);
-  backdrop-filter: blur(6px);
+  background: rgba(5, 5, 5, 0.78);
+  backdrop-filter: blur(8px);
   border: var(--hair) solid var(--hairline);
   border-radius: var(--radius);
 }

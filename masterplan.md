@@ -5,7 +5,7 @@
 Status keys, marked live as work happens — never batched:
 `[ ]` not started · `[~]` in progress · `[x]` complete · `[⏭]` deferred (always with a one-line reason)
 
-**Current sprint pointer:** S9
+**Current sprint pointer:** S10
 
 ---
 
@@ -333,15 +333,41 @@ The true blocker for a usable deployment: `githubApi.js` sends no `Authorization
 
 ---
 
-## S9 — Tests + CI `[ ]`
+## S9 — Tests + CI `[x]`
 
 Closes the ten-test-reports-against-zero-tests gap — the most damaging thing in the repo today.
 
-- [ ] Vitest over the pure functions first: `utils/positioning.js`, `utils/colors.js`, `services/heatmapGenerator.js`, `services/dataExporter.js`, `services/collaborationService.js`, the proxy handler, the scene-graph validator.
-- [ ] Playwright smoke + visual regression on the empty state at both viewports.
-- [ ] GitHub Actions workflow; README badge that reflects the **real** job.
+- [x] **74 tests** across five files (Vitest). Two environments chosen **per file**, not globally: the proxy and the scene-graph contract run in node, so a test cannot quietly start depending on a browser global the serverless function will never have; the `localStorage` services opt into jsdom with a pragma.
+- [x] Playwright acceptance in CI — the MOTION.md list plus screenshots at both viewports in empty, populated and all-panels-open states, uploaded as artifacts.
+- [x] GitHub Actions workflow with a badge, **and a guard that keeps the badge honest**.
 
-**Acceptance:** all tests pass locally; the workflow file is valid; the badge points at a workflow that exists.
+**Acceptance:** ✅ 74/74 tests; 10/10 guards; 15/15 browser checks, stable across three consecutive cold runs.
+
+| Suite | Tests | Covers |
+|---|---|---|
+| `tests/proxy.test.mjs` | 13 | allowlist, token handling, cache split, rate-limit passthrough |
+| `tests/sceneGraph.test.mjs` | 14 | the gitpulse contract, lossless round trip |
+| `tests/positioning.test.mjs` | 10 | axis spread on power-law data, separation, determinism |
+| `tests/scene.test.mjs` | 22 | language colours and codes, easing, seeded galaxy, liveness |
+| `tests/dom/services.test.mjs` | 15 | annotations, snapshots, preferences under jsdom |
+
+**As-shipped delta:**
+
+**Three real bugs the tests found, none of which was visible on screen:**
+
+1. **C++ and C# rendered grey as "Other".** `"C++".toLowerCase()` is `c++`, but the colour map's key is `cpp`, so both fell through to the fallback — and the node label came out as `C+`. *A grey sphere among grey spheres reads as data, not as a bug*, which is exactly why nobody had noticed. Fixed with an alias map (C++, C#, F#, Objective-C).
+2. **`getIntensityColor(NaN)` returned `undefined`.** `Math.floor(NaN)` is `NaN` and survives both clamps, so `colors[NaN]` is undefined and a heatmap cell would render with `backgroundColor: undefined`.
+3. **The easing suite asserts nothing overshoots `[0,1]`** — the assertion that would have caught `easeOutBack`, which the original entrance used and which the design system forbids.
+
+**Two mistakes were mine, in the tests:** I asserted `pinned` and `timestamp` where the implementation has `isPinned` and `createdAt`. The implementation was right; the tests were corrected.
+
+**A flaky gate is worse than no gate.** The cold-load check failed about one run in four, always on the first run after `vite preview` started — that run pays for module transform and SwiftShader context creation, so it measured the harness starting up rather than the app rendering. The harness now warms first; verified stable across three consecutive cold runs.
+
+**New guard:** a CI badge must point at a workflow that **exists** and that actually runs `npm run build`, `npm run guards` and `npm test`. A badge for a workflow that only builds is the same class of overstatement as ten test reports against zero tests. Verified the guard fires by temporarily stubbing `npm test` out of the workflow.
+
+**Noted, not fixed:** the aethereum pre-commit gate flags every edit to `tests/sceneGraph.test.mjs` as touching the frozen `SceneGraph v1` contract, because the contract's `files` glob lists its own spec file. Editing a test is not changing the contract; re-declaring to narrow the glob would itself be a change to a frozen contract, so it is left as advisory noise.
+
+Commits `3ccba4e` and the warm-up fix.
 
 ---
 

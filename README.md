@@ -11,7 +11,9 @@ git clone https://github.com/br9704/github-3d-visualizer.git
 cd github-3d-visualizer && npm install && npm run dev
 ```
 
-> **Not deployed yet.** The token proxy is built and tested against a mocked upstream; creating the PAT and deploying are owner-gated and tracked in [`masterplan.md`](masterplan.md#s11--owner-gated-block-). There is no live URL to link, so this file does not pretend there is one.
+> **Live: https://github-3d-visualizer.vercel.app**
+>
+> Deployed on Vercel with the token proxy authenticated against real GitHub — measured `x-ratelimit-remaining: 4993`, so the demo runs on 5,000 requests/hour rather than the shared unauthenticated 60. Edge caching observed in production (`x-vercel-cache: HIT`), and the proxy allowlist verified live: `/api/github/user` returns 403 with a real token behind it. The token appears in none of the four client chunks.
 
 | | Measured | Source |
 |---|---|---|
@@ -226,7 +228,8 @@ A reader refuses an unknown `version` rather than guessing, and reports every va
 
 ## Limitations
 
-- **Not deployed.** There is no live URL, so nothing here has been verified against production. The token proxy has been tested only against a mocked upstream — it has never made an authenticated request to real GitHub, and the edge-cache behaviour has never been observed with a real `x-vercel-cache` header.
+- **The deployment is a manual upload, not a Git integration.** The Vercel project is not linked to this repository, so a push does not deploy and every release is a CLI upload. Until that is fixed, the deployed build and this repository can diverge — which has already happened once: the `vercel.json` rewrite the proxy depends on was live in production before it existed here.
+- **Deployment routing is not covered by any test.** The proxy's 13 unit tests exercise the handler, and the bug that took the live proxy down for every real path was that the handler was never invoked. Nothing in CI would catch a repeat.
 - **On Fast 3G the first frame lands at 2665 ms**, missing this project's own 2 s bar. The unsplit build misses it too. Shipping a WebGL renderer over a 1.6 Mbit/s link costs what it costs.
 - **The frame-time figures come from one machine.** An Apple M4 Pro is not representative hardware, and the only other number available is a software-rasteriser floor. There is no measurement on integrated graphics, which is what `MOTION.md` originally asked for.
 - **"Share & Annotate" is local-only.** There is no server and no real-time sync — state is shared by copying a URL and annotations live in one browser's `localStorage`.

@@ -30,3 +30,6 @@ artifacts/
 # built; the prompts that drove a session are not, and CLAUDE.md is explicit
 # that process artifacts do not get committed here.
 DOCS-ENGINEERPROMPT.md
+
+# Vercel CLI link (project + org ids, machine-local)
+.vercel

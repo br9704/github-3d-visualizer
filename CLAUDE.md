@@ -11,7 +11,7 @@ Read this at the start of every session. `masterplan.md` (created in Phase 3 of 
 |---|---|
 | Name | Bruno Jaamaa · jaamaabruno@gmail.com · GitHub `br9704` |
 | Repo | github.com/br9704/github-3d-visualizer |
-| Live URL | **None.** This is the central problem. |
+| Live URL | **https://github-3d-visualizer.vercel.app** — deployed 2026-08-15, PAT live, 5,000 req/hr. |
 
 ## What this is
 
@@ -49,7 +49,8 @@ No sprint in this repo closes on a green build alone. Screenshot the result at 1
 - ~~README hero is a `via.placeholder.com` URL~~ — **resolved S6.** `docs/hero.gif`, recorded from the running app against a deterministic fixture.
 - ~~"60fps on 100+ repos" unverified~~ — **resolved S0/S5.** Claim deleted, replaced with measured frame work on named hardware in `docs/perf.json`.
 - **Still open — commit authorship.** 48 commits by `OpenClaw Bot <bot@openclaw.com>` and `Claude Code <code@anthropic.com>`, publicly visible. Rewriting is an `ask_human` decision; it force-pushes public history. S11.
-- **Still open — not deployed.** The proxy is verified only against a mocked upstream; edge caching has never been observed in production. S11.
+- ~~Not deployed; proxy verified only against a mock~~ — **resolved 2026-08-15.** Live at https://github-3d-visualizer.vercel.app with the PAT set (`x-ratelimit-remaining: 4993`), edge caching observed (`x-vercel-cache: HIT`), and the allowlist holding live (`/api/github/user` → 403). Production immediately exposed a bug 13 passing mock tests could not: `[...path]` resolved as a **single** dynamic segment, so the proxy was dead for every real two-segment path. Fixed with a `rewrites` block in `vercel.json`.
+- **Still open — the deployment is not linked to the repo.** It deploys by CLI upload, so a push does not release, and repo and production can diverge. Linking the Vercel project to `github.com/br9704/github-3d-visualizer` is owner-gated.
 - **Still open — Fast 3G misses the 2 s bar** (2665 ms to first frame). So does the unsplit build; it is the cost of shipping a WebGL renderer, not a regression.
 - **Still open — perf measured on one machine.** Apple M4 Pro only. `MOTION.md` asked for integrated graphics and that has never been run.
 - **Still open — `f#`, `objective-c` and `shell` aliases are inert**, mapping to keys with no colour defined, so those languages render grey.
@@ -91,7 +92,7 @@ The masterplan is the **single source of truth for sequencing**. This file is th
 
 > Update at every sprint close.
 
-**Current state (2026-08-15, Sprint D):** S0–S10 complete and Sprint D closed. The app renders a designed warm-black instrument on cold load — a seeded 88-node galaxy, no API call — and a real profile in 3 draw calls. 74 tests, 11 guards, 15 browser checks, CI. Eager payload 85.04 kB gzip; first frame 529 ms on 4G. README, `PROJECT.json` and `CHANGELOG.md` all trace every number to a committed artefact. **Still not deployed, and commit authorship is still a bot** — both are S11, owner-gated.
+**Current state (2026-08-15, Sprint D):** S0–S10 complete and Sprint D closed. The app renders a designed warm-black instrument on cold load — a seeded 88-node galaxy, no API call — and a real profile in 3 draw calls. 74 tests, 11 guards, 15 browser checks, CI. Eager payload 85.04 kB gzip; first frame 529 ms on 4G. README, `PROJECT.json` and `CHANGELOG.md` all trace every number to a committed artefact. **Deployed 2026-08-15** to https://github-3d-visualizer.vercel.app with the PAT live (5,000 req/hr), edge caching observed in production, and a real search verified end to end. **Still open:** the Vercel project is not linked to the repo, so releases are manual uploads; the CI badge is red on a lockfile/Vitest-4 mismatch; and commit authorship is still a bot. All three are S11, owner-gated.
 
 ## MOTION.md (binding)
 

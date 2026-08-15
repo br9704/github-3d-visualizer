@@ -3,13 +3,13 @@
   "slug": "github-3d-visualizer",
   "name": "3D GITHUB VISUALIZER",
   "oneLiner": "Any GitHub profile as a navigable 3D universe, in three draw calls a frame",
-  "status": "in-development",
+  "status": "live",
   "role": "SOLO BUILD",
   "year": "2026",
   "updated": "2026-08-15",
   "links": {
     "github": "https://github.com/br9704/github-3d-visualizer",
-    "live": null,
+    "live": "https://github-3d-visualizer.vercel.app",
     "npm": null,
     "huggingface": null,
     "appstore": null

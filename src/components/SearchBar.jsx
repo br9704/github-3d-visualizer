@@ -29,6 +29,9 @@ export default function SearchBar({
   const [username, setUsername] = useState('')
   const [localError, setLocalError] = useState('')
   const [typed, setTyped] = useState(false)
+  // The suggestion list is only wanted while the visitor is still choosing.
+  // Submitting or pressing Escape puts it away; typing again brings it back.
+  const [suggestionsDismissed, setSuggestionsDismissed] = useState(false)
 
   const noteKeystroke = () => {
     if (!typed) {
@@ -39,6 +42,7 @@ export default function SearchBar({
 
   const handleChange = (next) => {
     noteKeystroke()
+    setSuggestionsDismissed(false)
     setUsername(next)
   }
 
@@ -48,10 +52,17 @@ export default function SearchBar({
       setLocalError('enter a github username')
       return
     }
+    setSuggestionsDismissed(true)
     onSearch(username.trim())
   }
 
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter') handleSearch()
+    if (e.key === 'Escape') setSuggestionsDismissed(true)
+  }
+
   const handleAutocompleteSelect = (selected) => {
+    setSuggestionsDismissed(true)
     setUsername(selected)
     onSearch(selected)
   }
@@ -76,7 +87,7 @@ export default function SearchBar({
             type="text"
             value={username}
             onChange={(e) => handleChange(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+            onKeyDown={handleKeyDown}
             placeholder="github username"
             disabled={loading}
             className="sig-field search-input"
@@ -88,6 +99,7 @@ export default function SearchBar({
             value={username}
             onChange={handleChange}
             onSelect={handleAutocompleteSelect}
+            dismissed={suggestionsDismissed}
           />
         </div>
 

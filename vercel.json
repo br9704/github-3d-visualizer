@@ -7,6 +7,12 @@
       "maxDuration": 10
     }
   },
+  "rewrites": [
+    {
+      "source": "/api/github/:path*",
+      "destination": "/api/github/[...path]"
+    }
+  ],
   "headers": [
     {
       "source": "/assets/(.*)",

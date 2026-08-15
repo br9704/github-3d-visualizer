@@ -8,7 +8,19 @@ const CACHE_TTL = 5 * 60 * 1000 // 5 minutes
 // Simple in-memory cache for autocomplete results
 const autocompleteCache = new Map()
 
-export default function UsernameAutocomplete({ value, onChange, onSelect }) {
+/**
+ * @param {boolean} [props.dismissed] - Set once the visitor has submitted, or
+ *   pressed Escape. Without it the 300ms debounce below simply refetches and
+ *   reopens the list over the scene the search just produced — the same defect
+ *   S2 fixed when the search card was covering the universe it had rendered.
+ *   Cleared on the next keystroke, so typing again re-arms the suggestions.
+ */
+export default function UsernameAutocomplete({
+  value,
+  onChange,
+  onSelect,
+  dismissed = false
+}) {
   const [suggestions, setSuggestions] = useState([])
   const [isOpen, setIsOpen] = useState(false)
 
@@ -62,6 +74,11 @@ export default function UsernameAutocomplete({ value, onChange, onSelect }) {
 
   // Debounce search input (300ms)
   useEffect(() => {
+    if (dismissed) {
+      setIsOpen(false)
+      return
+    }
+
     const timer = setTimeout(() => {
       if (value) {
         fetchSuggestions(value)
@@ -72,7 +89,7 @@ export default function UsernameAutocomplete({ value, onChange, onSelect }) {
     }, 300)
 
     return () => clearTimeout(timer)
-  }, [value, fetchSuggestions])
+  }, [value, dismissed, fetchSuggestions])
 
   const handleSelect = (username) => {
     onSelect(username)
@@ -82,7 +99,10 @@ export default function UsernameAutocomplete({ value, onChange, onSelect }) {
 
   return (
     <div className="autocomplete-container">
-      {isOpen && suggestions.length > 0 && (
+      {/* `dismissed` is checked here as well as in the effect: fetchSuggestions
+          is async, so an in-flight request can resolve and setIsOpen(true)
+          after the visitor has already submitted. */}
+      {!dismissed && isOpen && suggestions.length > 0 && (
         <div className="autocomplete-dropdown">
           {suggestions.map((user) => (
             <div

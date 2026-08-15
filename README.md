@@ -15,6 +15,8 @@ cd github-3d-visualizer && npm install && npm run dev
 >
 > Deployed on Vercel with the token proxy authenticated against real GitHub: `x-ratelimit-remaining` reads in the 4,900s rather than under 60, so the demo runs on 5,000 requests/hour instead of the shared unauthenticated limit. Edge caching observed in production (`x-vercel-cache: HIT`), and the proxy allowlist verified live — `/api/github/user` returns 403 with a real token behind it. The token appears in none of the four client chunks. Pushes to `main` deploy automatically.
 
+Case study: [brunojaamaa.dev/projects/3d-github-visualizer](https://brunojaamaa.dev/projects/3d-github-visualizer)
+
 | | Measured | Source |
 |---|---|---|
 | Eager JS payload | **223.81 → 85.07 kB gzip** (62% cut) | `npm run build` · guard #11 |

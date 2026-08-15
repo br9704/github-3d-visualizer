@@ -11,7 +11,14 @@
 // changed across the Three.js upgrade, the distribution moves.
 import { createRequire } from 'node:module';
 const require_ = createRequire(import.meta.url);
-const { chromium } = require_('/Users/brunojaamaa/bruno-portfolio/node_modules/playwright/index.js');
+// Playwright is a devDependency of this repo, so the bare specifier resolves
+// from this checkout — no machine-specific path.
+let chromium;
+try {
+  ({ chromium } = require_('playwright'));
+} catch {
+  throw new Error('Playwright not found. Install it: npm i -D playwright');
+}
 
 async function hist(file) {
   const b = await chromium.launch({ headless: true });

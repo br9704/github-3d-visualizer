@@ -19,23 +19,16 @@ import { makeRepos, makeUser, README_TEXT } from '../tests/fixtures/github.mjs';
 
 const require_ = createRequire(import.meta.url);
 
-/** Playwright is not a dependency of this app; borrow it if it is installed. */
+/** Playwright is a devDependency; resolve it from this checkout. */
 function loadChromium() {
-  const candidates = [
-    'playwright',
-    '/Users/brunojaamaa/bruno-portfolio/node_modules/playwright/index.js'
-  ];
-  for (const c of candidates) {
-    try {
-      return require_(c).chromium;
-    } catch {
-      /* try next */
-    }
+  try {
+    return require_('playwright').chromium;
+  } catch {
+    throw new Error(
+      'Playwright not found. Install it (npm i -D playwright) and run from a ' +
+        'checkout that has it.'
+    );
   }
-  throw new Error(
-    'Playwright not found. Install it (npm i -D playwright) or run from a ' +
-      'checkout that has it.'
-  );
 }
 
 const argv = process.argv.slice(2);

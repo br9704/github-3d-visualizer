@@ -33,3 +33,13 @@ DOCS-ENGINEERPROMPT.md
 
 # Vercel CLI link (project + org ids, machine-local)
 .vercel
+
+# --- machine-local agent + secret config (uniform block) ---
+# .env, .mcp.json, opencode.json, .cursor/, .codex/, .vercel and .vscode are
+# already ignored above; only the lines this repo was missing are added here.
+.env.*
+!.env.example
+.aethereum*
+.claude/
+*-ENGINEERPROMPT.md
+ENGINEERPROMPT.md

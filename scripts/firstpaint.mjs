@@ -40,15 +40,11 @@ import { createRequire } from 'node:module';
 
 const require_ = createRequire(import.meta.url);
 function loadChromium() {
-  for (const c of [
-    'playwright',
-    '/Users/brunojaamaa/bruno-portfolio/node_modules/playwright/index.js'
-  ]) {
-    try {
-      return require_(c).chromium;
-    } catch {}
+  try {
+    return require_('playwright').chromium;
+  } catch {
+    throw new Error('Playwright not found. Install it: npm i -D playwright');
   }
-  throw new Error('Playwright not found.');
 }
 
 const argv = process.argv.slice(2);

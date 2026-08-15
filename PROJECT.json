@@ -106,14 +106,14 @@
     ]
   },
   "ownerGated": [
-    "add the WAF rate-limit rule",
     "rewrite commit authorship from OpenClaw Bot and Claude Code to Bruno Jaamaa (force-push over public history)"
   ],
   "ownerGatedDone": [
     "create a fine-grained PAT and set it in Vercel — done 2026-08-15, verified live: x-ratelimit-remaining reads in the 4,900s, the authenticated ceiling",
     "deploy to Vercel and verify edge caching via x-vercel-cache — done 2026-08-15, HIT observed in production",
     "make og:image and twitter:image absolute, and add og:url — done 2026-08-15, once the domain existed",
-    "link the Vercel project to github.com/br9704/github-3d-visualizer — done 2026-08-15, main is the production branch so a push releases"
+    "link the Vercel project to github.com/br9704/github-3d-visualizer — done 2026-08-15, main is the production branch so a push releases",
+    "add the WAF rate-limit rule — done 2026-08-15, rule github-proxy: 100 req/60s per IP on /api/github, deny 1m"
   ],
   "github": {
     "description": "Any GitHub profile rendered as a navigable 3D universe. React, Three.js, WebGL — one instanced draw call per frame and a designed empty state.",

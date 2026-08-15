@@ -244,7 +244,9 @@ A reader refuses an unknown `version` rather than guessing, and reports every va
 
 Deploys are wired to this repository: `main` is the production branch, so a push releases and the repo can no longer quietly disagree with production about a file the proxy depends on.
 
-**Owner-gated:** the WAF rate-limit rule, and rewriting commit authorship. Tracked in [S11 of the masterplan](masterplan.md#s11--owner-gated-block-) so that nothing before them was ever blocked.
+Requests to `/api/github` are rate limited at the edge — 100 per 60 seconds per IP, denied for a minute past that — so a throttled request costs no function invocation at all.
+
+**Owner-gated:** rewriting commit authorship, and nothing else. Tracked in [S11 of the masterplan](masterplan.md#s11--owner-gated-block-).
 
 **Next:** a deployment-routing check. The one bug that took production down was invisible to all 74 tests, and it would still be invisible today.
 

@@ -287,7 +287,7 @@ The true blocker for a usable deployment: `githubApi.js` sends no `Authorization
 
 - [x] Vercel Node function at `api/github/[...path].js`. The PAT rides the **outbound** fetch only.
 - [x] `Vercel-CDN-Cache-Control: s-maxage=1800, stale-while-revalidate=86400` + browser `max-age=60`. **Errors are never cached** (`no-store`).
-- [x] Per-IP throttle via `@vercel/firewall`, **failing open** — the cache is the primary budget defence and a throttle outage should not take the demo down.
+- [⏭] Per-IP throttle via `@vercel/firewall`, **failing open** — the cache is the primary budget defence and a throttle outage should not take the demo down. **This was never true and is corrected in S11:** `@vercel/firewall` was never added to `dependencies`, so the dynamic import threw on every request and the `catch` chose the fail-open path 100% of the time. The rule ID it passed matched no rule either. Replaced with an edge-enforced WAF rule; the dead code is gone.
 - [x] `vercel.json` — function config, immutable caching for hashed assets, baseline security headers.
 - [x] Client switched to `/api/github/*`, including the autocomplete, which was still calling `api.github.com` directly.
 - [x] `declare_contract` — `GET /api/github/*`, with **five behavioural properties**, not just a shape.
@@ -450,7 +450,11 @@ Everything requiring Bruno, deliberately collected at the very end so nothing be
 
 - [x] `ask_human`: create a fine-grained PAT with **"Public repositories (read-only)" only** — sufficient for 5,000 req/hr — and add it as a Vercel env var. Never in the repo, never in chat. **Done 2026-08-15**, verified in production: `x-ratelimit-remaining: 4991`, so the demo is authenticated rather than on the shared 60/hr limit. Token absent from all four client chunks.
 - [x] Deploy to Vercel. Verify the live URL renders; confirm edge caching via the `x-vercel-cache` header. **Done 2026-08-15** — https://github-3d-visualizer.vercel.app. `x-vercel-cache: HIT` observed, `cdn-cache-control: public, s-maxage=1800, stale-while-revalidate=86400`, and the allowlist verified live (`/api/github/user` → 403 *with a real token behind it*).
-- [ ] Add the WAF rate-limit rule in the dashboard.
+- [x] Add the WAF rate-limit rule. **Done 2026-08-15** — rule `github-proxy` (`rule_github_proxy_NLZkDO`), active in the published config: path starts with `/api/github`, 100 requests per 60 s keyed by IP, fixed window, deny for 1 m. Created with `vercel firewall rules add` and `vercel firewall publish`, then confirmed against `/v1/security/firewall/config/active` rather than the CLI's success message.
+
+  **Adding it exposed that the throttle S7 claimed to have shipped had never run once.** The handler called `checkRateLimit('github-proxy')` behind `await import('@vercel/firewall')` inside a `try/catch` that returned `false` on failure — and `@vercel/firewall` was never in `dependencies`. So the import threw on every single request and the catch took the fail-open path every time. The rule ID was wrong too: real rules are `rule_github_proxy_NLZkDO`, not `github-proxy`. Two independent reasons it could not work, in code that reads exactly like a working throttle, and 13 proxy tests that never touched it.
+
+  The dead path is deleted rather than repaired. Enforcing at the edge is strictly better anyway: a throttled request is rejected *before* the function is invoked, so abuse costs no compute rather than merely no GitHub quota. **Limit chosen at 100/60s per IP** because one search costs about 25 requests (user + repos + up to 20 READMEs + autocomplete), so this allows roughly four searches a minute per visitor while bounding a single abusive IP.
 - [x] README: live URL at the very top; re-verify the S6 hero against production.
 - [x] **`index.html`: add `og:url`, and make `og:image` / `twitter:image` absolute.** **Done 2026-08-15**, once the domain existed.
 - [x] **Link the Vercel project to `github.com/br9704/github-3d-visualizer`.** Not in the original plan, and it turned out to matter: the first deploy was a CLI upload from a scratchpad copy, so the repo and production diverged immediately — `vercel.json`'s `rewrites` block existed only in the deployed copy, and a deploy from `main` would have reintroduced the routing bug. **Done 2026-08-15** via `vercel git connect`; the project API now reports `link: {type: github, org: br9704, repo: github-3d-visualizer, productionBranch: main}`, so a push to `main` releases.
@@ -492,5 +496,8 @@ Four separate times, a **green gate measured something other than the product**:
 2. `motion-check.mjs` hardcoded a port and started no server, so the MOTION suite ran end-to-end against **a different application** and scored its page as a rendered scene (S10).
 3. The same suite's binding "2 s cold load" bar ran on unthrottled localhost, where no build can fail it (S10).
 4. Thirteen proxy tests passed against a handler production never invoked (S11).
+5. The per-IP throttle S7 recorded as shipped had never executed: its dependency was never installed, so every call threw and every `catch` chose fail-open (S11).
+
+The fifth is the sharpest: there was no gate at all, and the code's own shape — a named function, a try/catch, a considered comment about failing open — was doing the work a gate should have done. Nobody checks a throttle that looks that deliberate.
 
 None of these was a flaky test or a bad assertion. In every case the assertion was correct and the *subject* was wrong. The lesson is not "write more tests" — this repository had ten test reports and zero tests, then 74 tests and four blind gates. It is: **a passing gate is not evidence until you can say what it measured.** Ask what the check would look like if the thing it watches were completely absent. If the answer is "the same", it is not a gate.

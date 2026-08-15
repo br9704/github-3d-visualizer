@@ -61,24 +61,26 @@ const EDGE_TTL = 1800 // 30 min
 const EDGE_SWR = 86400 // serve stale for a day while revalidating
 const BROWSER_TTL = 60
 
-/**
- * Per-IP throttle.
+/*
+ * Per-IP throttling is a WAF rule, not code.
  *
- * Vercel WAF rate limiting is available on every plan including Hobby, and
- * needs no KV store. The import is dynamic and failures are non-fatal so that
- * the function still works locally and in tests, where the firewall runtime
- * does not exist. Failing OPEN is deliberate: the cache is the primary budget
- * defence, and a throttle outage should not take the demo down.
+ * Rule `github-proxy` (id rule_github_proxy_NLZkDO): path starts with
+ * /api/github, 100 requests per 60s keyed by IP, fixed window, deny for 1m.
+ * The edge cache is the primary budget defence — most demo traffic hits a
+ * handful of famous usernames and never reaches GitHub at all — and this
+ * bounds what a single abusive IP can do to the remainder.
+ *
+ * This used to be an in-function `checkRateLimit('github-proxy')` behind a
+ * dynamic `import('@vercel/firewall')` wrapped in a try/catch that returned
+ * false on failure. It had never throttled a single request: `@vercel/firewall`
+ * was never a dependency, so the import always threw and the catch always chose
+ * the fail-open path. The rule ID it passed did not match a rule either. It was
+ * a throttle in the shape of the code and in no other respect.
+ *
+ * Enforcing at the edge is also strictly better than enforcing here: a
+ * throttled request is rejected before the function is invoked, so abuse costs
+ * no compute rather than merely no GitHub quota.
  */
-async function throttled(request) {
-  try {
-    const { checkRateLimit } = await import('@vercel/firewall')
-    const { rateLimited } = await checkRateLimit('github-proxy', { request })
-    return rateLimited
-  } catch {
-    return false
-  }
-}
 
 export default async function handler(req, res) {
   if (req.method !== 'GET' && req.method !== 'HEAD') {
@@ -95,11 +97,6 @@ export default async function handler(req, res) {
     // Explicitly not "not found" — the path is understood and refused. An open
     // proxy that authenticates with our token is the failure mode here.
     return res.status(403).json({ error: 'endpoint not proxied' })
-  }
-
-  if (await throttled(req)) {
-    res.setHeader('Retry-After', '60')
-    return res.status(429).json({ error: 'rate limited — slow down' })
   }
 
   const url = new URL(`${GITHUB}/${upstreamPath}`)

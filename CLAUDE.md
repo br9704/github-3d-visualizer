@@ -52,12 +52,13 @@ No sprint in this repo closes on a green build alone. Screenshot the result at 1
 - ~~Three.js pinned at 0.159~~ — **resolved S3.** Now 0.185.1, `three-stdlib` dropped.
 - ~~README hero is a `via.placeholder.com` URL~~ — **resolved S6.** `docs/hero.gif`, recorded from the running app against a deterministic fixture.
 - ~~"60fps on 100+ repos" unverified~~ — **resolved S0/S5.** Claim deleted, replaced with measured frame work on named hardware in `docs/perf.json`.
-- **Still open — commit authorship.** 48 commits by `OpenClaw Bot <bot@openclaw.com>` and `Claude Code <code@anthropic.com>`, publicly visible. Rewriting is an `ask_human` decision; it force-pushes public history. S11.
+- **Still open (the last one) — commit authorship.** 48 commits by `OpenClaw Bot <bot@openclaw.com>` and `Claude Code <code@anthropic.com>`, publicly visible. Rewriting is an `ask_human` decision; it force-pushes public history. S11.
 - ~~Not deployed; proxy verified only against a mock~~ — **resolved 2026-08-15.** Live at https://github-3d-visualizer.vercel.app with the PAT set — `x-ratelimit-remaining` reads in the 4,900s rather than under 60, which is the authenticated ceiling and the only thing that number needs to prove (it decrements per request, so quoting an exact value dates instantly). Edge caching observed (`x-vercel-cache: HIT`), and the allowlist holding live (`/api/github/user` → 403). Production immediately exposed a bug 13 passing mock tests could not: `[...path]` resolved as a **single** dynamic segment, so the proxy was dead for every real two-segment path. Fixed with a `rewrites` block in `vercel.json`.
 - ~~The deployment is not linked to the repo~~ — **resolved 2026-08-15.** `vercel git connect`; the project reports `link: {type: github, org: br9704, repo: github-3d-visualizer, productionBranch: main}`. A push to `main` now releases. Worth remembering how the gap arose: `vercel link` links a *directory* to a project and is not the same thing as connecting the *project* to a repo — the first had been done and looked like the second.
 - **Still open — Fast 3G misses the 2 s bar** (2665 ms to first frame). So does the unsplit build; it is the cost of shipping a WebGL renderer, not a regression.
 - **Still open — perf measured on one machine.** Apple M4 Pro only. `MOTION.md` asked for integrated graphics and that has never been run.
 - **Still open — `f#`, `objective-c` and `shell` aliases are inert**, mapping to keys with no colour defined, so those languages render grey.
+- **Still open — the 390×844 layout compresses the node cluster into a narrow band** with dead space above it, and the dock buttons render over the nodes. Reported as owner-accepted on 2026-08-15; recorded here rather than closed, because every gate passes on it (15/15 motion, zero console errors, clean `shots.mjs`) and a future session will otherwise re-find it as a bug.
 
 ---
 
@@ -98,7 +99,7 @@ The masterplan is the **single source of truth for sequencing**. This file is th
 
 **Current state (2026-08-15, Sprint D closed, S11 partial):** S0–S10 complete, Sprint D closed, S11 part-done. **Live at https://github-3d-visualizer.vercel.app** with the PAT set (`x-ratelimit-remaining` in the 4,900s — authenticated, not the shared 60), edge caching observed (`x-vercel-cache: HIT`), the allowlist holding live (`/api/github/user` → 403 with a real token behind it), and a real search verified end to end. Cold load renders a seeded 88-node galaxy with no API call; a loaded profile draws in 3 calls. 74 tests, 11 guards, 15 browser checks. Eager payload 270.74 kB / 85.07 kB gzip; first frame 529 ms on 4G. README, `PROJECT.json` and `CHANGELOG.md` each trace every number to a committed artefact.
 
-**Still open, all owner-gated (S11):** the WAF rate-limit rule, and commit authorship — still 48 bot commits. Deploys are now wired to the repo (`main` = production branch).
+**Still open, owner-gated (S11):** commit authorship — 48 bot commits, a force-push over public history. Everything else in S11 is done: deploy, PAT, absolute OG URLs, Git integration (`main` = production branch), and the WAF per-IP rate limit.
 
 ## MOTION.md (binding)
 

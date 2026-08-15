@@ -13,7 +13,7 @@ cd github-3d-visualizer && npm install && npm run dev
 
 > **Live: https://github-3d-visualizer.vercel.app**
 >
-> Deployed on Vercel with the token proxy authenticated against real GitHub — measured `x-ratelimit-remaining: 4993`, so the demo runs on 5,000 requests/hour rather than the shared unauthenticated 60. Edge caching observed in production (`x-vercel-cache: HIT`), and the proxy allowlist verified live: `/api/github/user` returns 403 with a real token behind it. The token appears in none of the four client chunks.
+> Deployed on Vercel with the token proxy authenticated against real GitHub: `x-ratelimit-remaining` reads in the 4,900s rather than under 60, so the demo runs on 5,000 requests/hour instead of the shared unauthenticated limit. Edge caching observed in production (`x-vercel-cache: HIT`), and the proxy allowlist verified live — `/api/github/user` returns 403 with a real token behind it. The token appears in none of the four client chunks. Pushes to `main` deploy automatically.
 
 | | Measured | Source |
 |---|---|---|
@@ -228,8 +228,7 @@ A reader refuses an unknown `version` rather than guessing, and reports every va
 
 ## Limitations
 
-- **The deployment is a manual upload, not a Git integration.** The Vercel project is not linked to this repository, so a push does not deploy and every release is a CLI upload. Until that is fixed, the deployed build and this repository can diverge — which has already happened once: the `vercel.json` rewrite the proxy depends on was live in production before it existed here.
-- **Deployment routing is not covered by any test.** The proxy's 13 unit tests exercise the handler, and the bug that took the live proxy down for every real path was that the handler was never invoked. Nothing in CI would catch a repeat.
+- **Deployment routing is not covered by any test.** The proxy's 13 unit tests exercise the handler, and the bug that took the live proxy down for every real path was that the handler was never invoked. Nothing in CI would catch a repeat — the only thing that caught it was curling production.
 - **On Fast 3G the first frame lands at 2665 ms**, missing this project's own 2 s bar. The unsplit build misses it too. Shipping a WebGL renderer over a 1.6 Mbit/s link costs what it costs.
 - **The frame-time figures come from one machine.** An Apple M4 Pro is not representative hardware, and the only other number available is a software-rasteriser floor. There is no measurement on integrated graphics, which is what `MOTION.md` originally asked for.
 - **"Share & Annotate" is local-only.** There is no server and no real-time sync — state is shared by copying a URL and annotations live in one browser's `localStorage`.
@@ -243,9 +242,11 @@ A reader refuses an unknown `version` rather than guessing, and reports every va
 
 **Live.** The designed empty state, the instanced scene and interaction motion, the HUD architecture, the Three.js 0.185 upgrade, the scene-graph interchange format, 74 tests with CI, the bundle split — and the token proxy, now authenticated against real GitHub rather than only a mock. Eleven sprints, each closed against acceptance criteria with a screenshot rather than a green build.
 
-**Owner-gated:** linking the Vercel project to this repository so a push releases; the WAF rate-limit rule; and rewriting commit authorship. Tracked in [S11 of the masterplan](masterplan.md#s11--owner-gated-block-) so that nothing before them was ever blocked.
+Deploys are wired to this repository: `main` is the production branch, so a push releases and the repo can no longer quietly disagree with production about a file the proxy depends on.
 
-**Next:** the Git integration, because until it exists the most likely future failure is the one that already happened — production and `main` quietly disagreeing about a file the proxy depends on.
+**Owner-gated:** the WAF rate-limit rule, and rewriting commit authorship. Tracked in [S11 of the masterplan](masterplan.md#s11--owner-gated-block-) so that nothing before them was ever blocked.
+
+**Next:** a deployment-routing check. The one bug that took production down was invisible to all 74 tests, and it would still be invisible today.
 
 ---
 

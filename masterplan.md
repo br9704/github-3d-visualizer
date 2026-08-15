@@ -453,7 +453,7 @@ Everything requiring Bruno, deliberately collected at the very end so nothing be
 - [ ] Add the WAF rate-limit rule in the dashboard.
 - [x] README: live URL at the very top; re-verify the S6 hero against production.
 - [x] **`index.html`: add `og:url`, and make `og:image` / `twitter:image` absolute.** **Done 2026-08-15**, once the domain existed.
-- [ ] **Link the Vercel project to `github.com/br9704/github-3d-visualizer`.** Not in the original plan, and it turned out to matter: the first deploy was a CLI upload from a scratchpad copy, so the repo and production diverged immediately — `vercel.json`'s `rewrites` block existed only in the deployed copy, and a deploy from `main` would have reintroduced the routing bug. A push should release.
+- [x] **Link the Vercel project to `github.com/br9704/github-3d-visualizer`.** Not in the original plan, and it turned out to matter: the first deploy was a CLI upload from a scratchpad copy, so the repo and production diverged immediately — `vercel.json`'s `rewrites` block existed only in the deployed copy, and a deploy from `main` would have reintroduced the routing bug. **Done 2026-08-15** via `vercel git connect`; the project API now reports `link: {type: github, org: br9704, repo: github-3d-visualizer, productionBranch: main}`, so a push to `main` releases.
 - [ ] `record_decision`, then `ask_human` for the final go → `git filter-repo` with a mailmap rewriting **both** bot identities to Bruno across all 48 commits → force-push. Irreversible: hashes change, history shape stays.
 - [ ] CHANGELOG entry; close the masterplan; update the Current-state line in `CLAUDE.md`.
 

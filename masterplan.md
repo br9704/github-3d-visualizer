@@ -444,7 +444,7 @@ Runs after the engineering sprints and before the owner-gated block, so the READ
 
 ---
 
-## S11 — Owner-gated block `[~]`
+## S11 — Owner-gated block `[~]` — one item left
 
 Everything requiring Bruno, deliberately collected at the very end so nothing before it blocks.
 
@@ -455,6 +455,8 @@ Everything requiring Bruno, deliberately collected at the very end so nothing be
   **Adding it exposed that the throttle S7 claimed to have shipped had never run once.** The handler called `checkRateLimit('github-proxy')` behind `await import('@vercel/firewall')` inside a `try/catch` that returned `false` on failure — and `@vercel/firewall` was never in `dependencies`. So the import threw on every single request and the catch took the fail-open path every time. The rule ID was wrong too: real rules are `rule_github_proxy_NLZkDO`, not `github-proxy`. Two independent reasons it could not work, in code that reads exactly like a working throttle, and 13 proxy tests that never touched it.
 
   The dead path is deleted rather than repaired. Enforcing at the edge is strictly better anyway: a throttled request is rejected *before* the function is invoked, so abuse costs no compute rather than merely no GitHub quota. **Limit chosen at 100/60s per IP** because one search costs about 25 requests (user + repos + up to 20 READMEs + autocomplete), so this allows roughly four searches a minute per visitor while bounding a single abusive IP.
+
+  **Verified by tripping it against production, not by reading the config back.** 120 cache-busted requests to `/api/github/users/torvalds`: 200 through request 98, denied from 99 (the health checks just before it had consumed the difference), then recovered on its own after 37 s. The denial had to be *attributed* before it could be believed — the allowlist also answers 403, so a 403 alone proves nothing. The WAF response is `content-type: text/plain`, body `Forbidden`, and carries **`x-vercel-mitigated: deny`**; the allowlist answers `application/json` with `{"error":"endpoint not proxied"}`. Given this sprint found a throttle that had never run, accepting an ambiguous 403 as proof would have repeated the exact mistake being fixed.
 - [x] README: live URL at the very top; re-verify the S6 hero against production.
 - [x] **`index.html`: add `og:url`, and make `og:image` / `twitter:image` absolute.** **Done 2026-08-15**, once the domain existed.
 - [x] **Link the Vercel project to `github.com/br9704/github-3d-visualizer`.** Not in the original plan, and it turned out to matter: the first deploy was a CLI upload from a scratchpad copy, so the repo and production diverged immediately — `vercel.json`'s `rewrites` block existed only in the deployed copy, and a deploy from `main` would have reintroduced the routing bug. **Done 2026-08-15** via `vercel git connect`; the project API now reports `link: {type: github, org: br9704, repo: github-3d-visualizer, productionBranch: main}`, so a push to `main` releases.

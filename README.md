@@ -54,12 +54,12 @@ flowchart TD
         SCENE["Scene layer · z-index 0<br/>Visualizer + useThreeScene"]
     end
 
-    subgraph eager["Eager chunk — 85.07 kB gzip"]
+    subgraph eager["Eager · 85.07 kB gzip"]
         APP["App.jsx · state, search, filters"]
         HUD
     end
 
-    subgraph deferred["Deferred chunks — modulepreloaded, 139.94 kB gzip"]
+    subgraph deferred["Deferred · 139.94 kB gzip"]
         SCENE
         THREE["three 0.185.1<br/>InstancedMesh · OrbitControls"]
     end

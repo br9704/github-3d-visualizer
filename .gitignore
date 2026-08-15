@@ -23,3 +23,10 @@ GEMINI.md
 # Local verification artifacts
 playwright-report/
 test-results/
+shots/
+artifacts/
+
+# Agent-process prompts. The masterplan is this project's record of how it was
+# built; the prompts that drove a session are not, and CLAUDE.md is explicit
+# that process artifacts do not get committed here.
+DOCS-ENGINEERPROMPT.md

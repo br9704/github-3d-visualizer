@@ -1,0 +1,31 @@
+{
+  "measuredAt": "2026-08-15",
+  "note": "Time from navigation to the first frame the renderer draws, cold cache, software WebGL (SwiftShader). MOTION.md requires a moving scene within 2s.",
+  "budgetMs": 2000,
+  "results": [
+    {
+      "profile": "local",
+      "label": "localhost (no throttle)",
+      "samples": 9,
+      "medianMs": 250,
+      "minMs": 188,
+      "maxMs": 1807
+    },
+    {
+      "profile": "4g",
+      "label": "4G — 9 Mbit/s down, 40 ms RTT",
+      "samples": 9,
+      "medianMs": 529,
+      "minMs": 496,
+      "maxMs": 602
+    },
+    {
+      "profile": "3g",
+      "label": "Fast 3G — 1.6 Mbit/s down, 563 ms RTT",
+      "samples": 9,
+      "medianMs": 2665,
+      "minMs": 2511,
+      "maxMs": 3216
+    }
+  ]
+}

@@ -4,6 +4,9 @@
  */
 
 .data-export-panel {
+  /* See FilterSetsManager: mono belongs at the panel root. The metadata
+     preview and the stat rows are plain divs and had the same fall-through. */
+  font-family: var(--font-mono);
   background: var(--surface-raised);
   border: var(--hair) solid var(--steel);
   border-radius: var(--radius);
@@ -216,6 +219,33 @@
   cursor: pointer;
   transition: background 0.2s var(--ease);
   border-radius: var(--radius);
+}
+
+/* The rail is 296px (HudLayout.css). Without this, "Full (all fields)" wrapped
+   under its own radio square, because a flex row with an unshrinkable control
+   and a non-shrinking text node has nowhere to give. Same fix the export tabs
+   already carry one panel over.
+
+   The size is the part that must never break: "~45.88 kb" split across two
+   lines reads as two numbers. It pins right and keeps its whole width; the
+   label takes what is left. */
+.option > span {
+  min-width: 0;
+}
+
+.option > span:not(.size) {
+  flex: 1 1 auto;
+}
+
+.option .size {
+  flex: 0 0 auto;
+  margin-left: auto;
+  white-space: nowrap;
+}
+
+.option input[type="radio"],
+.option input[type="checkbox"] {
+  flex: 0 0 auto;
 }
 
 .option:hover {

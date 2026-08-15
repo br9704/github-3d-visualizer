@@ -145,9 +145,9 @@
 }
 
 .collab-message.info {
-  background: rgba(59, 130, 246, 0.12);
+  background: rgba(255, 176, 0, 0.10);
   color: var(--text-secondary);
-  border: 1px solid rgba(59, 130, 246, 0.3);
+  border: var(--hair) solid rgba(255, 176, 0, 0.28);
 }
 
 @keyframes collab-fade-in {
@@ -373,7 +373,7 @@
 
 .snapshot-meta {
   font-size: 10px;
-  color: rgba(160, 174, 192, 0.6);
+  color: var(--text-dim);
   margin-bottom: 8px;
 }
 
@@ -490,7 +490,7 @@
 
 .comment-date {
   font-size: 10px;
-  color: rgba(160, 174, 192, 0.5);
+  color: var(--text-dim);
 }
 
 .comment-text {

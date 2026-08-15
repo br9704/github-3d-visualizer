@@ -21,6 +21,7 @@
     "histcmp": "node scripts/histcmp.mjs",
     "motion-check": "node scripts/motion-check.mjs",
     "perf": "node scripts/perf.mjs",
+    "firstpaint": "node scripts/firstpaint.mjs",
     "capture": "node scripts/capture.mjs",
     "test": "vitest run",
     "test:watch": "vitest"

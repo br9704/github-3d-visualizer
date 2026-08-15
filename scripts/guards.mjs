@@ -107,13 +107,35 @@ const PALETTE = new Set([
   '#050505', '#0b0a09', '#100e0c', '#f0ece4', '#98928a', '#55504a',
   '#ffb000', '#ffc94d', '#8f6300', '#2c2925', '#1b1916', '#3fb950'
 ]);
-check('only SIGNAL palette hex values in CSS', () => {
+// The palette again, as "r, g, b" — because a colour written rgba(59,130,246,.12)
+// is the same violation as #3b82f6 and the hex-only check could not see it.
+// That hole was not theoretical: it hid a blue info panel, an indigo button
+// hover, two slate-grey text colours and a literal white label through S1's
+// entire colour purge and every gate since.
+const PALETTE_RGB = new Set(
+  [...PALETTE].map((hex) => {
+    const h = hex.length === 4
+      ? [...hex.slice(1)].map((c) => c + c).join('')
+      : hex.slice(1, 7);
+    return [0, 2, 4].map((i) => parseInt(h.slice(i, i + 2), 16)).join(',');
+  })
+);
+check('only SIGNAL palette colours in CSS', () => {
   const hits = [];
   for (const [p, s] of files(['.css'])) {
     s.split('\n').forEach((line, i) => {
       for (const m of line.matchAll(/#[0-9a-fA-F]{3,8}\b/g)) {
         if (!PALETTE.has(m[0].toLowerCase())) {
           hits.push(`${p}:${i + 1}  ${m[0]}  ${line.trim().slice(0, 46)}`);
+        }
+      }
+      // rgb()/rgba() with a literal triple. Alpha is free — transparency over
+      // the warm-black ground is how the panels are built — but the underlying
+      // colour still has to be one of ours.
+      for (const m of line.matchAll(/rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*[,)]/g)) {
+        const rgb = `${m[1]},${m[2]},${m[3]}`;
+        if (!PALETTE_RGB.has(rgb)) {
+          hits.push(`${p}:${i + 1}  rgb(${rgb})  ${line.trim().slice(0, 40)}`);
         }
       }
     });
@@ -214,6 +236,90 @@ check('README claims nothing the repo cannot back', () => {
   const fps = readme.match(/\b\d+\s*(?:FPS|fps)\b/g);
   if (fps && !fs.existsSync('docs/perf.json')) {
     hits.push(`README.md  ${fps.join(', ')} with no docs/perf.json behind it`);
+  }
+  return hits;
+});
+
+// ── 7b. Initial-load budget ──────────────────────────────────────────────
+// S10's goal was "the 3D engine loads after first paint", and Vite's own
+// chunk-size warning cannot express that: it fires per chunk, so a perfectly
+// deferred 545 kB `three` trips it while a 499 kB entry chunk does not.
+//
+// The thing that actually matters is the BLOCKING graph — the entry chunk plus
+// everything it statically imports, transitively. That is what has to be
+// downloaded, parsed and executed before React can render anything.
+//
+// A `<link rel="modulepreload">` is deliberately NOT part of that graph. It is
+// a fetch hint: it tells the browser to start downloading a chunk early, but
+// nothing waits on it. The scene chunks are preloaded on purpose (see
+// preloadSceneChunks in vite.config.js) because without the hint the browser
+// will not request Three.js until the entry chunk has downloaded and run,
+// which cost 944 ms of the hero moment on a slow link. Reading preload tags as
+// though they were imports would flag that fix as the very regression it fixes
+// — the two are opposites and this guard has to tell them apart.
+const INITIAL_BUDGET_KB = 500;
+check('initial JS payload under budget, with three deferred', () => {
+  if (!fs.existsSync('dist/index.html')) {
+    notes.push('initial-load budget skipped — no dist/, run `npm run build` first');
+    return [];
+  }
+  const html = fs.readFileSync('dist/index.html', 'utf8');
+  const hits = [];
+
+  const entry = html.match(/<script[^>]+src="\/([^"]+\.js)"/)?.[1];
+  if (!entry) {
+    hits.push('dist/index.html  no entry script found — did the build change?');
+    return hits;
+  }
+
+  /**
+   * Walk static imports from the entry chunk. Rollup emits them minified as
+   * `from"./react-abc.js"` and bare side-effect `import"./x.js"`. A dynamic
+   * import is `import("./x.js")` — the parenthesis is what distinguishes it,
+   * and it is excluded on purpose: dynamic means nothing blocks on it.
+   */
+  const blocking = new Set();
+  const walk = (asset) => {
+    if (blocking.has(asset)) return;
+    blocking.add(asset);
+    const file = path.join('dist', asset);
+    if (!fs.existsSync(file)) {
+      hits.push(`dist/index.html  references missing asset ${asset}`);
+      return;
+    }
+    const code = fs.readFileSync(file, 'utf8');
+    const specs = [
+      ...code.matchAll(/from\s*["']\.\/([^"']+\.js)["']/g),
+      ...code.matchAll(/(?:^|[;\s}])import\s*["']\.\/([^"']+\.js)["']/g)
+    ].map((m) => m[1]);
+    for (const s of specs) walk(path.posix.join(path.posix.dirname(asset), s));
+  };
+  walk(entry);
+
+  let total = 0;
+  for (const asset of blocking) {
+    const file = path.join('dist', asset);
+    if (!fs.existsSync(file)) continue;
+    total += fs.statSync(file).size;
+    // Three.js in the BLOCKING graph means the split regressed — one stray
+    // static `import ... from 'three'` outside the scene module is enough to
+    // pull the whole engine back in front of first paint.
+    if (/^three-/.test(path.basename(asset))) {
+      hits.push(`${asset}  three is statically imported by the entry — the scene split regressed`);
+    }
+  }
+
+  const kb = total / 1000;
+  if (kb > INITIAL_BUDGET_KB) {
+    hits.push(
+      `blocking JS ${kb.toFixed(2)} kB over the ${INITIAL_BUDGET_KB} kB budget ` +
+        `(${[...blocking].join(', ')})`
+    );
+  } else {
+    notes.push(
+      `blocking JS ${kb.toFixed(2)} kB of the ${INITIAL_BUDGET_KB} kB budget ` +
+        `(${blocking.size} chunk(s))`
+    );
   }
   return hits;
 });

@@ -2,9 +2,51 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <!-- The light theme was deleted in S1; this app has one ground and it is
+         warm black. Declaring it stops the browser painting a white canvas in
+         the moment before the stylesheet lands — the same white page that this
+         whole project was started to fix, in miniature. -->
+    <meta name="color-scheme" content="dark" />
+    <meta name="theme-color" content="#050505" />
+
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+
     <title>3D GitHub Visualizer</title>
+    <meta
+      name="description"
+      content="Any GitHub profile rendered as a 3D universe. Repositories become spheres sized by stars, coloured by language, and positioned by age, stars and forks."
+    />
+
+    <!-- Link preview. The image is a real screenshot of the app, cropped from
+         docs/scene-desktop.png — not a mock-up, and not a stock image.
+         og:url is deliberately absent: there is no live URL yet, and inventing
+         one would be exactly the kind of unbacked claim the honesty rules
+         forbid. Add it at S11, once the domain exists, along with an absolute
+         og:image URL — some scrapers will not resolve a relative one. -->
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="3D GitHub Visualizer" />
+    <meta
+      property="og:description"
+      content="Any GitHub profile rendered as a 3D universe. Repositories become spheres sized by stars, coloured by language, and positioned by age, stars and forks."
+    />
+    <meta property="og:image" content="/og.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta
+      property="og:image:alt"
+      content="A dark 3D scene of coloured spheres labelled with language codes, surrounded by a monospace instrument HUD."
+    />
+
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="3D GitHub Visualizer" />
+    <meta
+      name="twitter:description"
+      content="Any GitHub profile rendered as a 3D universe. Repositories become spheres sized by stars, coloured by language, and positioned by age, stars and forks."
+    />
+    <meta name="twitter:image" content="/og.png" />
   </head>
   <body>
     <div id="root"></div>

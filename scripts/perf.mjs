@@ -161,11 +161,14 @@ let existing = {};
 try {
   existing = JSON.parse(fs.readFileSync(OUT, 'utf8'));
 } catch {}
+// `measuredAt` belongs to the MODE, not to the file. Stamping it at the top
+// level meant re-running one mode silently re-dated the other, so the file
+// could claim a headed figure was measured on a day no headed run happened.
 const merged = {
-  measuredAt: report.measuredAt,
   hardware: report.hardware,
   viewport: report.viewport,
   modes: { ...(existing.modes || {}), [report.mode]: {
+    measuredAt: report.measuredAt,
     renderer: report.renderer,
     caveat: report.caveat,
     runs: report.runs

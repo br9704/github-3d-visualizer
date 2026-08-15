@@ -5,7 +5,7 @@
 Status keys, marked live as work happens — never batched:
 `[ ]` not started · `[~]` in progress · `[x]` complete · `[⏭]` deferred (always with a one-line reason)
 
-**Current sprint pointer:** S10
+**Current sprint pointer:** Sprint D
 
 ---
 
@@ -371,14 +371,49 @@ Commits `3ccba4e` and the warm-up fix.
 
 ---
 
-## S10 — Bundle + perf `[ ]`
+## S10 — Bundle + perf `[x]`
 
-- [ ] Dynamic `import()` of the scene module + `manualChunks` isolating `three`. Today: one 731.75 kB chunk (197.00 kB gzip), over Vite's 500 kB warning.
-- [ ] Target: initial chunk under the warning threshold, 3D engine loaded after first paint.
-- [ ] Profile a synthetic 100+ repo fixture. Record p95 frame time and the honest hardware it ran on.
-- [ ] **The "60fps on 100+ repos" line is either evidenced by this measurement or deleted from all copy.**
+- [x] Dynamic `import()` of the scene module + `manualChunks` isolating `three`. At kickoff: one 731.75 kB chunk (197.00 kB gzip), over Vite's 500 kB warning. By the time this sprint ran, S3's Three upgrade and S8's scene-graph code had taken that single chunk to **834.06 kB (223.81 kB gzip)**.
+- [x] Target: initial chunk under the warning threshold, 3D engine loaded after first paint. **Blocking payload is now 270.62 kB raw / 85.04 kB gzip.**
+- [x] Build-time `modulepreload` for the scene chunks, without which the split is a net regression on any real connection (see below).
+- [x] Profile a synthetic 100+ repo fixture. Record p95 frame time and the honest hardware it ran on.
+- [x] **The "60fps on 100+ repos" line is either evidenced by this measurement or deleted from all copy.** — deleted in S0, replaced in S5 with measured frame work on named hardware. Re-verified, not re-litigated.
+- [x] New harness `scripts/firstpaint.mjs` (`npm run firstpaint`) — time to first drawn frame on a throttled link.
+- [x] Polish items S2 and S6 deferred into "S10's polish pass".
 
-**Acceptance:** build emits no chunk-size warning; measured numbers committed; README perf claims match the committed measurement exactly, or are gone.
+**Acceptance (restated — see delta):** ✅ blocking payload under 500 kB with `three` out of the static graph, mechanically guarded; ✅ first-frame time measured on three link profiles and no worse than the single-bundle build; ✅ 74/74 tests, 11/11 guards, 15/15 MOTION checks; ✅ screenshots at both viewports captured **and looked at**.
+
+**As-shipped delta:**
+
+**The stated acceptance — "build emits no chunk-size warning" — is not reachable honestly, and was replaced rather than quietly satisfied.** Vite's warning fires per chunk at 500 kB. Tree-shaken `three` is 545.56 kB, against 750.94 kB for the library's own full minified build (`three.module.min.js` 365,552 B + `three.core.min.js` 385,386 B, the first importing the second) — so 27% is already being shaken out, and what remains is `WebGLRenderer` and the shader library, which this app needs. The only ways to silence the warning were to raise `chunkSizeWarningLimit`, which mutes a real regression detector, or to shatter `three` into arbitrary sub-chunks, which helps nothing. Both are dishonest ways to turn a checkbox green.
+
+What the sprint body actually asked for — "initial chunk under the warning threshold, 3D engine loaded after first paint" — *is* reachable, and is now a mechanical gate: **guard #11, "initial JS payload under budget, with three deferred."** The warning still prints on every build, deliberately, so a genuine regression still announces itself.
+
+**The split, shipped alone, would have been a regression — and every gate in this repo would have passed it.** A dynamic import is not requested until the chunk containing the import statement has downloaded, parsed and run, so `three` queued *behind* the two smallest chunks instead of travelling beside them. Measured with the new harness, 5 samples per profile, cold context, cache disabled, time to first drawn frame:
+
+| Link | One chunk | Split, no preload | Split + preload |
+|---|---|---|---|
+| localhost | 139 ms | 178 ms | 250 ms |
+| 4G — 9 Mbit/s, 40 ms RTT | 438 ms | 527 ms | **529 ms** |
+| Fast 3G — 1.6 Mbit/s, 563 ms RTT | 2549 ms | **3493 ms** | **2665 ms** |
+
+The split cost **944 ms of the hero moment on Fast 3G**. `preloadSceneChunks()` in `vite.config.js` advertises the scene chunks in the HTML so the browser opens all three connections at once; that recovers it to within run-to-run noise of the single-bundle baseline. The localhost column is the noisiest (single-sample outliers of 1.2–1.8 s across runs) and is the one profile where preloading plausibly costs something real — parse work front-loaded on a link where bandwidth was never the constraint. No visitor is on localhost; it is in the table because it is the profile every previous gate used.
+
+**The MOTION.md 2 s gate has been passing since S4 on a check that could not fail.** `motion-check.mjs` loads over unthrottled localhost, where every build arrives in milliseconds. Worse, it hardcodes port 4173 and starts no server of its own: on this machine 4173 was held by a different project, and the suite ran end-to-end against **another application**, with the bright-pixel heuristic scoring that application's page as a rendered scene and passing the first check. So every green "cold load renders a scene within 2s" recorded in S4, S5 and S9 was measured on a link no visitor has, and at least one was measured against the wrong app. `firstpaint.mjs` owns its own server on an OS-assigned free port and throttles; it gates on 4G, because on Fast 3G **both** the split and the single-bundle build miss 2 s — that is pre-existing and not the split's doing.
+
+**Total JS went up, and the win is critical-path only.** 796.74 → 835.60 kB raw, 212.10 → 224.98 kB gzip, mostly S3's Three upgrade. What improved is what a visitor waits on before the HUD paints: **eager gzip 223.81 → 85.04 kB, a 62% cut.** Any copy implying the app got smaller would be unbacked.
+
+*Found while closing, none of it on the sprint list:*
+
+- **The favicon has never worked.** `index.html` shipped Vite's scaffold `<link rel="icon" href="/vite.svg">` and this repo has no `public/` directory — the file does not exist anywhere. It does not even 404: the SPA fallback answers `/vite.svg` with `200 text/html`, so no monitor would ever flag it. Fixed with a real mark, plus the `meta description` / OpenGraph / Twitter-card block the app had none of — for a product whose headline feature is a shareable URL, a pasted link previewed as a bare domain. `og:image` is deliberately relative and `og:url` deliberately absent; **both must become absolute at S11, once a domain exists.**
+- **Blue and indigo were still in the app, through S1's entire colour purge and every gate since.** Guard #5 only inspected hex literals, so `rgba(59, 130, 246, 0.12)` (a blue info panel), `rgba(99, 102, 241, 1)` (an indigo hover on the preferences primary button), two slate-grey text colours and a literal white label were invisible to it. The guard now parses `rgb()`/`rgba()` triples against the same palette; the six black scrims it then surfaced were moved from `rgba(0,0,0,…)` to the real ground `rgba(5,5,5,…)` rather than granted an exception.
+- Both guards were verified to *fail* before being trusted: budget lowered to 200 kB fails; a stray static `import * as THREE from 'three'` in `App.jsx` fails with "three is statically imported by the entry" at 816.25 kB blocking.
+- `perf.mjs` stamped `measuredAt` at the top of the file, so re-running one mode silently re-dated the other — the file could claim a GPU figure was measured on a day no GPU run happened. The date now belongs to the mode.
+- The S2/S6 cosmetic deferrals are closed: panel metadata was falling through to the body sans because `HudLayout.css` only reached `h3/h4/h5/label`, fixed at the two panel roots; and the export size no longer wraps mid-number at the 296px rail.
+
+**Deferred:** a fresh **headed** (GPU) perf run — the headed browser closed mid-run three times on this machine and the harness could not complete. `docs/perf.json` keeps S5's GPU figures, now explicitly stamped `measuredAt: 2026-08-14`, alongside today's software-rasteriser run. S10 changed module loading, not the render loop, so steady-state frame work cannot have moved; but the figure is dated honestly rather than presented as current.
+
+Commit: see below.
 
 ---
 
@@ -390,6 +425,7 @@ Everything requiring Bruno, deliberately collected at the very end so nothing be
 - [ ] Deploy to Vercel. Verify the live URL renders; confirm edge caching via the `x-vercel-cache` header.
 - [ ] Add the WAF rate-limit rule in the dashboard.
 - [ ] README: live URL at the very top; re-verify the S6 hero against production.
+- [ ] **`index.html`: add `og:url`, and make `og:image` / `twitter:image` absolute.** They ship relative (`/og.png`) because inventing a domain would be an unbacked claim. Slack and Facebook resolve relative URLs; the spec wants absolute and some scrapers require it, so a pasted link will preview inconsistently until this is done. Landed in S10, must not be forgotten here.
 - [ ] `record_decision`, then `ask_human` for the final go → `git filter-repo` with a mailmap rewriting **both** bot identities to Bruno across all 48 commits → force-push. Irreversible: hashes change, history shape stays.
 - [ ] CHANGELOG entry; close the masterplan; update the Current-state line in `CLAUDE.md`.
 
@@ -406,3 +442,8 @@ Expanded in place as work happens — never deleted, never rewritten.
 - **2026-08-14** — Root cause of "white": renderer `alpha: true` + `ThemeContext` defaulting to `prefers-color-scheme: light` → `--bg-primary: #f8f9fa` shows through the canvas.
 - **2026-08-14** — 48 commits, not 30: 39 `OpenClaw Bot`, 9 `Claude Code`. The audit's count came from a shallow clone.
 - **2026-08-14** — `three@0.185.1` is current; `three-stdlib@2.36.1` is already latest and becomes removable once `three/addons` is used directly.
+- **2026-08-15** — `motion-check.mjs` hardcodes port 4173 and starts no server. With another project holding that port, the whole MOTION suite ran against a different application and the first check *passed*. A gate that can false-pass is worse than no gate. `firstpaint.mjs` owns its server on an OS-assigned port; `motion-check.mjs` still needs the same treatment.
+- **2026-08-15** — Splitting a large dependency into its own chunk is not free: without a `modulepreload` hint the browser will not request it until the importing chunk has downloaded and executed. Measured cost here was 944 ms to first frame on Fast 3G. Any future split needs the same before/after measurement.
+- **2026-08-15** — Tree-shaken `three` is 545.56 kB against 750.94 kB for the library's own full minified build. There is no honest route under Vite's 500 kB per-chunk warning while `WebGLRenderer` ships.
+- **2026-08-15** — The favicon has never resolved: `index.html` referenced Vite's scaffold `/vite.svg`, which this repo has never contained. The SPA fallback answers it `200 text/html`, so it fails silently rather than 404ing.
+- **2026-08-15** — A design-system guard that inspects only hex literals does not enforce the palette. Blue (`rgba(59,130,246,…)`) and indigo (`rgba(99,102,241,1)`) survived S1's colour purge and eight sprints of gates inside `rgba()`.

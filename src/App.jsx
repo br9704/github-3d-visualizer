@@ -10,9 +10,18 @@
  *  5. Collaboration       - Share links, snapshots, annotations (CollaborationPanel)
  */
 
-import { useState, useCallback, useRef, useEffect } from 'react'
+import { useState, useCallback, useRef, useEffect, lazy, Suspense } from 'react'
 import SearchBar from './components/SearchBar'
-import Visualizer from './components/Visualizer'
+/**
+ * The scene is the only part of the app that needs Three.js, and Three.js is
+ * two thirds of the bundle. Splitting it here lets the HUD paint from a small
+ * chunk while the engine streams in beside it, instead of the browser parsing
+ * the whole renderer before anything appears.
+ *
+ * This is a code-split, not a defer: the import fires as soon as App renders,
+ * because MOTION.md still requires a moving scene within 2s of a cold load.
+ */
+const Visualizer = lazy(() => import('./components/Visualizer'))
 import RepoDetails from './components/RepoDetails'
 import ColorLegend from './components/ColorLegend'
 import LanguageFilter from './components/LanguageFilter'
@@ -353,15 +362,20 @@ function App() {
           position:fixed with no z-index and painted over the header, which
           is what made this app render as a blank page. */}
       <div id="main-content">
-        <Visualizer
-          repos={positionedRepos}
-          filteredLanguage={filteredLanguage}
-          onRepoClick={handleRepoClick}
-          selectedRepo={selectedRepo}
-          isTyping={isTyping}
-          onSettled={handleSettled}
-          onFrameStats={handleFrameStats}
-        />
+        {/* fallback is null on purpose: the grid plane and the HUD are already
+            on screen, so the gap reads as the scene fading up rather than as a
+            missing element. A spinner here would violate the design system. */}
+        <Suspense fallback={null}>
+          <Visualizer
+            repos={positionedRepos}
+            filteredLanguage={filteredLanguage}
+            onRepoClick={handleRepoClick}
+            selectedRepo={selectedRepo}
+            isTyping={isTyping}
+            onSettled={handleSettled}
+            onFrameStats={handleFrameStats}
+          />
+        </Suspense>
       </div>
 
       {/* ── HUD layer (z-index 10+) ───────────────────────────────────────

@@ -1,0 +1,117 @@
+{
+  "schema": 1,
+  "slug": "github-3d-visualizer",
+  "name": "3D GITHUB VISUALIZER",
+  "oneLiner": "Any GitHub profile as a navigable 3D universe, in three draw calls a frame",
+  "status": "in-development",
+  "role": "SOLO BUILD",
+  "year": "2026",
+  "updated": "2026-08-15",
+  "links": {
+    "github": "https://github.com/br9704/github-3d-visualizer",
+    "live": null,
+    "npm": null,
+    "huggingface": null,
+    "appstore": null
+  },
+  "stack": ["javascript", "react", "three.js", "webgl", "vite", "vitest", "playwright", "vercel-functions"],
+  "metrics": [
+    {
+      "value": "62%",
+      "label": "smaller eager payload, 223.81 to 85.04 kB gzip",
+      "source": "masterplan.md"
+    },
+    {
+      "value": "3",
+      "label": "draw calls, constant at 250 repositories",
+      "source": "docs/perf.json"
+    },
+    {
+      "value": "0.2 ms",
+      "label": "p95 frame work against a 16.7 ms budget, Apple M4 Pro",
+      "source": "docs/perf.json"
+    },
+    {
+      "value": "529 ms",
+      "label": "to first drawn frame on a throttled 4G link",
+      "source": "docs/firstpaint.json"
+    },
+    {
+      "value": "74",
+      "label": "tests, against ten test reports and zero tests before",
+      "source": "tests/proxy.test.mjs"
+    }
+  ],
+  "headline": {
+    "claim": "It built cleanly and rendered a blank white page — because headless Chromium has no WebGL, so every automated check had been screenshotting an empty canvas and passing.",
+    "source": "README.md#how-it-was-built"
+  },
+  "honest": "Not deployed, so the token proxy has never made an authenticated request to real GitHub and its edge caching has never been observed in production. Frame-time figures come from a single Apple M4 Pro; there is no measurement on integrated graphics. On Fast 3G the first frame lands at 2665 ms, missing the project's own 2 s bar, and the unsplit build misses it too. Commit history is still authored by a bot.",
+  "media": {
+    "hero": "docs/hero.gif",
+    "demo": "docs/hero.gif",
+    "diagram": null,
+    "og": "public/og.png",
+    "screenshots": ["docs/empty-desktop.png", "docs/scene-desktop.png", "docs/empty-mobile.png", "docs/scene-mobile.png"]
+  },
+  "built": {
+    "audit": "Built clean at exit 0 with no console errors and rendered a near-blank white page: the canvas mounted position:fixed with no z-index and painted over the header, an alpha renderer let a light-theme background show through, and eleven components each positioned themselves independently.",
+    "repaired": [
+      "Canvas painted over the header — a missing z-index, not a missing component",
+      "Sphere radius was applied twice, so rendered radius was size squared and small repositories vanished",
+      "A WebGL failure set an error state that nothing ever rendered, so a visitor without WebGL got a silent empty page",
+      "Headless Chromium has no WebGL, so every automated check had been passing against an empty canvas",
+      "The browser suite hardcoded a port and started no server, and once ran end-to-end against a different application",
+      "C++ and C# fell through to the grey Other bucket because \"C++\".toLowerCase() is not the map key",
+      "Blue and indigo survived the design-system purge inside rgba(), invisible to a hex-only guard",
+      "The favicon had never resolved — index.html referenced a scaffold file the repo never contained",
+      "Deleted 37 process documents, including ten test reports written against zero tests"
+    ],
+    "measured": [
+      "Splitting Three.js out of the entry chunk cost 944 ms to first frame on Fast 3G until a build-time modulepreload was added — the obvious optimisation was a regression until it was measured",
+      "Frame interval is useless on fast hardware: 100 and 250 repositories both reported 4.2 ms, which is the display refresh, so the harness records time inside the render loop instead",
+      "Rank-mapped axes replaced a linear min-max, because stars and forks are power-law distributed and a linear map collapsed the universe into one mass"
+    ],
+    "decisions": [
+      {
+        "what": "An allowlist proxy, not a passthrough",
+        "why": "Four endpoint patterns are proxied and everything else 403s. Without it, /api/github/<anything> would be an open proxy authenticating with our token, including /user, which would reveal whose token it is."
+      },
+      {
+        "what": "Guard the blocking payload instead of silencing Vite's chunk warning",
+        "why": "Tree-shaken three is 545.56 kB against 750.94 kB for its own full minified build; the remainder is WebGLRenderer. Raising chunkSizeWarningLimit would mute a real regression detector, so a guard asserts the entry chunk plus its static imports stays under 500 kB with three absent."
+      },
+      {
+        "what": "The empty state is the product",
+        "why": "Most visitors never type a username. A seeded 88-node galaxy renders with no API call, so the first ten seconds are never blank and can never rate-limit."
+      },
+      {
+        "what": "Scene-graph layout is optional but all-or-nothing",
+        "why": "A producer without coordinates should not have to invent them, but half a layout would place some nodes meaningfully and the rest at the origin, which reads as a bug rather than as data."
+      }
+    ]
+  },
+  "ownerGated": [
+    "create a fine-grained PAT (public repositories, read-only) and set it in Vercel",
+    "deploy to Vercel and verify edge caching via x-vercel-cache",
+    "add the WAF rate-limit rule",
+    "make og:image and twitter:image absolute, and add og:url, once a domain exists",
+    "rewrite commit authorship from OpenClaw Bot and Claude Code to Bruno Jaamaa (force-push over public history)"
+  ],
+  "github": {
+    "description": "Any GitHub profile rendered as a navigable 3D universe. React, Three.js, WebGL — one instanced draw call per frame and a designed empty state.",
+    "topics": [
+      "3d-visualization",
+      "threejs",
+      "webgl",
+      "react",
+      "vite",
+      "github-api",
+      "javascript",
+      "data-visualization",
+      "instanced-rendering",
+      "frontend"
+    ]
+  },
+  "masterplan": "masterplan.md"
+}

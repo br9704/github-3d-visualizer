@@ -355,7 +355,7 @@ Closes the ten-test-reports-against-zero-tests gap — the most damaging thing i
 
 **Three real bugs the tests found, none of which was visible on screen:**
 
-1. **C++ and C# rendered grey as "Other".** `"C++".toLowerCase()` is `c++`, but the colour map's key is `cpp`, so both fell through to the fallback — and the node label came out as `C+`. *A grey sphere among grey spheres reads as data, not as a bug*, which is exactly why nobody had noticed. Fixed with an alias map (C++, C#, F#, Objective-C).
+1. **C++ and C# rendered grey as "Other".** `"C++".toLowerCase()` is `c++`, but the colour map's key is `cpp`, so both fell through to the fallback — and the node label came out as `C+`. *A grey sphere among grey spheres reads as data, not as a bug*, which is exactly why nobody had noticed. Fixed with an alias map. *(Corrected during Sprint D: this originally read "(C++, C#, F#, Objective-C)". Only C++ and C# are actually fixed — `'f#': 'fsharp'` and `'objective-c': 'objectivec'` alias to keys that exist in neither `languageColors` nor `languageCodes`, so those two still fall through to grey. The README only ever claimed C++ and C#, so no public copy was wrong.)*
 2. **`getIntensityColor(NaN)` returned `undefined`.** `Math.floor(NaN)` is `NaN` and survives both clamps, so `colors[NaN]` is undefined and a heatmap cell would render with `backgroundColor: undefined`.
 3. **The easing suite asserts nothing overshoots `[0,1]`** — the assertion that would have caught `easeOutBack`, which the original entrance used and which the design system forbids.
 
@@ -417,6 +417,22 @@ Commit: see below.
 
 ---
 
+## Sprint D — Documentation `[~]`
+
+Runs after the engineering sprints and before the owner-gated block, so the README describes a finished artefact rather than a moving one. Driven by `DOCS-ENGINEERPROMPT.md` (not committed — it is process, and this file is the record).
+
+- [~] Rewrite `README.md` to the documentation-pass structure: hook and visual above the fold, badges that resolve, prose instead of a feature inventory, a Mermaid architecture diagram, a "How it was built" section, evidence tables, limitations, status.
+- [~] `PROJECT.json` at the repo root — the machine-readable card the portfolio consumes. Every `metrics[].source` must point at a file that exists; `honest` is required and non-empty.
+- [~] Backfill `CHANGELOG.md`, which stops at v4.0.0 (2026-03-11) and has no entry for S0–S10 at all — it still advertises the dark/light theme toggle deleted in S1.
+- [~] Repo hygiene: `LICENSE` matches `package.json`; `.gitignore` covers process artefacts; the GitHub description and topics stop claiming TypeScript and Tailwind, neither of which this project uses.
+- [~] Push. All of S0–S10 is local-only: `origin/main` is still `5d54521 v5.0`, so the public repo shows the pre-audit README, the 40 process markdown files and the `via.placeholder.com` hero.
+
+**Acceptance:** every number in the README traces to a committed artefact; every image and badge resolves; the Mermaid diagram renders on GitHub; `PROJECT.json` validates and every `source` path exists.
+
+**Owner decisions taken (2026-08-15):** finish S10 before this sprint; nothing owner-gated is done, so the README keeps its "not yet deployed" shape and the hero GIF leads; push and fix the repo metadata; hold nothing back from the measured numbers.
+
+---
+
 ## S11 — Owner-gated block `[ ]`
 
 Everything requiring Bruno, deliberately collected at the very end so nothing before it blocks.
@@ -447,3 +463,4 @@ Expanded in place as work happens — never deleted, never rewritten.
 - **2026-08-15** — Tree-shaken `three` is 545.56 kB against 750.94 kB for the library's own full minified build. There is no honest route under Vite's 500 kB per-chunk warning while `WebGLRenderer` ships.
 - **2026-08-15** — The favicon has never resolved: `index.html` referenced Vite's scaffold `/vite.svg`, which this repo has never contained. The SPA fallback answers it `200 text/html`, so it fails silently rather than 404ing.
 - **2026-08-15** — A design-system guard that inspects only hex literals does not enforce the palette. Blue (`rgba(59,130,246,…)`) and indigo (`rgba(99,102,241,1)`) survived S1's colour purge and eight sprints of gates inside `rgba()`.
+- **2026-08-15** — Three entries in `languageAliases` (`f#`, `objective-c`, `shell`) point at keys that exist in neither `languageColors` nor `languageCodes`, so they are inert: those languages still render grey. Left as-is and recorded rather than fixed during a documentation sprint; adding the three colours would change the README's verified "17 language-specific colours" to 20.

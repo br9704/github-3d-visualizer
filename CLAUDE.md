@@ -42,11 +42,17 @@ No sprint in this repo closes on a green build alone. Screenshot the result at 1
 
 ## Known issues
 
-- 731 kB single bundle (197 kB gzip) — Three.js not code-split; Vite warns.
-- Three.js pinned at 0.159, old by Aug 2026. Assess upgrade cost vs benefit; do not upgrade for its own sake. `three-stdlib` must move in lockstep.
-- README hero image is a literal `via.placeholder.com` URL. No screenshot of the product exists.
-- Every commit authored by **"OpenClaw Bot" `<bot@openclaw.com>`**, publicly visible. ~12 consecutive visible commits are cosmetic colour swaps. Rewriting authorship is an `ask_human` decision — it force-pushes public history.
-- The portfolio claims **"60fps on 100+ repos"**. Unverified. Profile it and evidence it, or the copy changes.
+> Resolved items are kept with their resolution, so the list stays a record rather than a to-do that loses its history.
+
+- ~~731 kB single bundle, Three.js not code-split~~ — **resolved S10.** Eager payload is 270.62 kB raw / 85.04 kB gzip. Vite still warns about the 545.56 kB `three` chunk on purpose; guard #11 gates the blocking graph instead. Do not raise `chunkSizeWarningLimit`.
+- ~~Three.js pinned at 0.159~~ — **resolved S3.** Now 0.185.1, `three-stdlib` dropped.
+- ~~README hero is a `via.placeholder.com` URL~~ — **resolved S6.** `docs/hero.gif`, recorded from the running app against a deterministic fixture.
+- ~~"60fps on 100+ repos" unverified~~ — **resolved S0/S5.** Claim deleted, replaced with measured frame work on named hardware in `docs/perf.json`.
+- **Still open — commit authorship.** 48 commits by `OpenClaw Bot <bot@openclaw.com>` and `Claude Code <code@anthropic.com>`, publicly visible. Rewriting is an `ask_human` decision; it force-pushes public history. S11.
+- **Still open — not deployed.** The proxy is verified only against a mocked upstream; edge caching has never been observed in production. S11.
+- **Still open — Fast 3G misses the 2 s bar** (2665 ms to first frame). So does the unsplit build; it is the cost of shipping a WebGL renderer, not a regression.
+- **Still open — perf measured on one machine.** Apple M4 Pro only. `MOTION.md` asked for integrated graphics and that has never been run.
+- **Still open — `f#`, `objective-c` and `shell` aliases are inert**, mapping to keys with no colour defined, so those languages render grey.
 
 ---
 
@@ -85,7 +91,7 @@ The masterplan is the **single source of truth for sequencing**. This file is th
 
 > Update at every sprint close.
 
-**Current state:** Builds clean, renders blank, not deployed, no tests, 40 process markdown files, bot authorship. No masterplan yet — create one in Phase 3 of `ENGINEERPROMPT.md`. Honesty pass and token proxy are Sprint 0 and 1.
+**Current state (2026-08-15, Sprint D):** S0–S10 complete and Sprint D closed. The app renders a designed warm-black instrument on cold load — a seeded 88-node galaxy, no API call — and a real profile in 3 draw calls. 74 tests, 11 guards, 15 browser checks, CI. Eager payload 85.04 kB gzip; first frame 529 ms on 4G. README, `PROJECT.json` and `CHANGELOG.md` all trace every number to a committed artefact. **Still not deployed, and commit authorship is still a bot** — both are S11, owner-gated.
 
 ## MOTION.md (binding)
 

@@ -5,6 +5,74 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [Unreleased] — 2026-08-14 → 2026-08-15
+
+A measured audit found the app building cleanly and rendering a near-blank white
+page. Eleven sprints followed; sequencing, acceptance criteria and as-shipped
+deltas are in [`masterplan.md`](masterplan.md).
+
+### Fixed — the blank page
+
+- Canvas mounted `position: fixed` with no `z-index` and painted over the header.
+  The header was never missing; it was covered.
+- Renderer created with `alpha: true` while the theme defaulted to
+  `prefers-color-scheme: light`, so the page background showed through as white.
+- Sphere geometry was built at radius `size` *and* scaled by `size`, so rendered
+  radius was `size²` — small repositories became invisible, large ones swallowed
+  the scene.
+- A missing WebGL context set an error state that nothing ever rendered, so a
+  visitor without WebGL saw a silent empty page.
+
+### Added
+
+- **Ambient galaxy.** A seeded 88-node procedural field renders on cold load with
+  no API call, so the empty state is never blank and can never rate-limit.
+- **Entrance and interaction motion** per `MOTION.md`: dissolve, camera pullback,
+  largest-first stagger, hover ring, click-to-camera-flight, idle slowdown, and a
+  render loop that pauses entirely when the tab is hidden.
+- **Instanced scene.** One `InstancedMesh` plus a billboarded label atlas — 3 draw
+  calls for the whole scene, constant in repository count.
+- **Token proxy** at `api/github/[...path].js` — a fine-grained PAT on the
+  outbound fetch only, an allowlist of four endpoints, bounded query parameters,
+  edge caching, and errors never cached. Verified against a mocked upstream.
+- **Scene-graph interchange** (`github-3d-visualizer/scene` v1) — drop a file on
+  the page or open `?scene=<url>`. Layout is optional but all-or-nothing.
+- **74 tests** across five suites, plus GitHub Actions CI running the unit tests,
+  11 mechanical guards, and a real browser against the built app.
+- **Verification harnesses:** `guards`, `shots`, `motion-check`, `perf`,
+  `firstpaint`, `histcmp`, `capture`.
+- **Link preview and favicon.** `index.html` had shipped Vite's scaffold
+  `/vite.svg`, which this repo never contained, and no OpenGraph tags at all.
+
+### Changed
+
+- **SIGNAL design system.** One warm-black ground; the light theme and its toggle
+  were deleted outright. 87 emoji replaced across 14 components with monospace
+  glyphs. Terminal-voice loading and error states, no spinners.
+- **HUD architecture.** Eleven independently `position: fixed` panels replaced by
+  one `HudLayout` owning four regions, with `j`/`k`/`↵` navigation and a bottom
+  sheet at 390px.
+- **Positioning by rank, not linear min-max.** Stars and forks are power-law
+  distributed; a linear map collapsed nearly every repository onto one coordinate.
+- **Three.js 0.159 → 0.185.1**, dropping `three-stdlib`. Verified by colour
+  histogram rather than pixel diff, because the scene auto-orbits.
+- **Bundle split.** Eager payload 223.81 → 85.04 kB gzip. Ships with a build-time
+  `modulepreload` for the scene chunks, without which the split cost 944 ms to
+  first frame on Fast 3G.
+- **Documentation.** 37 process documents deleted, including ten test reports
+  written against zero tests. `LICENSE` added — MIT had been claimed with no file
+  behind it. "Collaboration" renamed "Share & Annotate (local)", which is what the
+  service actually does.
+
+### Removed
+
+- Dark/light theme toggle (v3.x). One ground now.
+- Fabricated performance claims: "60 FPS at 100+ repositories", a per-repo FPS
+  table, "Frustum Culling (+15-20 FPS)", "saves ~16MB GPU memory", and
+  arrow-key camera rotation, which no handler ever implemented.
+
+---
+
 ## [v4.0.0] — 2026-03-11
 
 ### New Features (v4 Roadmap — Top 5 Improvements)

@@ -15,15 +15,19 @@ Read this at the start of every session. `masterplan.md` (created in Phase 3 of 
 
 ## What this is
 
-A Vite + React + Three.js SPA. A GitHub user's repos become icosahedron spheres — size ∝ √stars, colour by language, positioned by age/stars/forks. Orbit camera, click-to-detail with README preview, language filters, saved filter sets, JSON/CSV/screenshot export, shareable base64 URLs, heatmap modes, dark/light theme.
+A Vite + React + Three.js SPA. A GitHub user's repos become icosahedron spheres — size ∝ √stars, colour by language, positioned by age/stars/forks. Orbit camera, click-to-detail with README preview, language filters, saved filter sets, JSON/CSV/screenshot export, shareable base64 URLs, heatmap modes. **One theme, warm black (SIGNAL)** — the light theme and its toggle were deleted in S1.
 
-## Current state (verified in a real browser, Aug 2026)
+## The audit this project started from (Aug 2026 — kept as the record)
+
+> This section is history, not current state. It is preserved because it is the evidence for the rule below. For where the project stands now, see **Current state** at the bottom of this file.
 
 `npm run build` → exit 0, 404 modules, 13.1s. 5,913 LOC / 41 files. No TODOs, no stubs. Console errors: none.
 
-**And it renders a near-blank white page.** Unstyled white background, browser-default typography, a floating search card, a **stray "Preferences" panel floating detached in the lower-left**, raw emoji (🌙 ❓ 🔍 ⚙️) as controls. No header, no branding, nothing 3D. The scene appears only after a successful search — which without a token fails on GitHub's 60 req/hr shared limit.
+**And it rendered a near-blank white page.** Unstyled white background, browser-default typography, a floating search card, a **stray "Preferences" panel floating detached in the lower-left**, raw emoji (🌙 ❓ 🔍 ⚙️) as controls. No header, no branding, nothing 3D. The scene appeared only after a successful search — which without a token failed on GitHub's 60 req/hr shared limit.
 
-**A visitor sees a white page, then an error.** A build-level check missed all of this, which is exactly why the rule below exists.
+**A visitor saw a white page, then an error.** A build-level check missed all of this, which is exactly why the rule below exists.
+
+Three more gates were later found measuring something other than the product: the MOTION.md 2 s check ran on unthrottled localhost where no build can fail it; the browser suite once ran end-to-end against **a different application** that held its hardcoded port; and the token proxy's 13 passing mock tests could not see that `[...path]` resolved as a single dynamic segment in production, leaving the proxy dead for every real two-segment path. **Mock-verified is not runtime-verified, and a green gate is not evidence until you know what it measured.**
 
 ## The rule this project exists to teach
 
@@ -44,7 +48,7 @@ No sprint in this repo closes on a green build alone. Screenshot the result at 1
 
 > Resolved items are kept with their resolution, so the list stays a record rather than a to-do that loses its history.
 
-- ~~731 kB single bundle, Three.js not code-split~~ — **resolved S10.** Eager payload is 270.62 kB raw / 85.04 kB gzip. Vite still warns about the 545.56 kB `three` chunk on purpose; guard #11 gates the blocking graph instead. Do not raise `chunkSizeWarningLimit`.
+- ~~731 kB single bundle, Three.js not code-split~~ — **resolved S10.** Eager payload is 270.74 kB raw / 85.07 kB gzip. Vite still warns about the 545.56 kB `three` chunk on purpose; guard #11 gates the blocking graph instead. Do not raise `chunkSizeWarningLimit`.
 - ~~Three.js pinned at 0.159~~ — **resolved S3.** Now 0.185.1, `three-stdlib` dropped.
 - ~~README hero is a `via.placeholder.com` URL~~ — **resolved S6.** `docs/hero.gif`, recorded from the running app against a deterministic fixture.
 - ~~"60fps on 100+ repos" unverified~~ — **resolved S0/S5.** Claim deleted, replaced with measured frame work on named hardware in `docs/perf.json`.
@@ -92,7 +96,9 @@ The masterplan is the **single source of truth for sequencing**. This file is th
 
 > Update at every sprint close.
 
-**Current state (2026-08-15, Sprint D):** S0–S10 complete and Sprint D closed. The app renders a designed warm-black instrument on cold load — a seeded 88-node galaxy, no API call — and a real profile in 3 draw calls. 74 tests, 11 guards, 15 browser checks, CI. Eager payload 85.04 kB gzip; first frame 529 ms on 4G. README, `PROJECT.json` and `CHANGELOG.md` all trace every number to a committed artefact. **Deployed 2026-08-15** to https://github-3d-visualizer.vercel.app with the PAT live (5,000 req/hr), edge caching observed in production, and a real search verified end to end. **Still open:** the Vercel project is not linked to the repo, so releases are manual uploads; the CI badge is red on a lockfile/Vitest-4 mismatch; and commit authorship is still a bot. All three are S11, owner-gated.
+**Current state (2026-08-15, Sprint D closed, S11 partial):** S0–S10 complete, Sprint D closed, S11 part-done. **Live at https://github-3d-visualizer.vercel.app** with the PAT set (`x-ratelimit-remaining: 4991`), edge caching observed (`x-vercel-cache: HIT`), the allowlist holding live (`/api/github/user` → 403 with a real token behind it), and a real search verified end to end. Cold load renders a seeded 88-node galaxy with no API call; a loaded profile draws in 3 calls. 74 tests, 11 guards, 15 browser checks. Eager payload 270.74 kB / 85.07 kB gzip; first frame 529 ms on 4G. README, `PROJECT.json` and `CHANGELOG.md` each trace every number to a committed artefact.
+
+**Still open, all owner-gated (S11):** the Vercel project is not linked to the repo, so releases are manual CLI uploads and production can diverge from `main` — which already happened once, with `vercel.json`'s `rewrites` block living only in the deployed copy; the WAF rate-limit rule; and commit authorship, still 48 bot commits.
 
 ## MOTION.md (binding)
 

@@ -17,7 +17,7 @@ cd github-3d-visualizer && npm install && npm run dev
 
 | | Measured | Source |
 |---|---|---|
-| Eager JS payload | **223.81 → 85.04 kB gzip** (62% cut) | `npm run build` · guard #11 |
+| Eager JS payload | **223.81 → 85.07 kB gzip** (62% cut) | `npm run build` · guard #11 |
 | First drawn frame, 4G | **529 ms** | [`docs/firstpaint.json`](docs/firstpaint.json) |
 | Frame work, p95 at 250 repos | **0.2 ms** of a 16.7 ms budget | [`docs/perf.json`](docs/perf.json) |
 | Draw calls | **3**, constant in repository count | [`docs/perf.json`](docs/perf.json) |
@@ -54,7 +54,7 @@ flowchart TD
         SCENE["Scene layer · z-index 0<br/>Visualizer + useThreeScene"]
     end
 
-    subgraph eager["Eager chunk — 85.04 kB gzip"]
+    subgraph eager["Eager chunk — 85.07 kB gzip"]
         APP["App.jsx · state, search, filters"]
         HUD
     end
@@ -109,8 +109,8 @@ Three.js is code-split out of the critical path and advertised to the browser wi
 
 | | Before | After |
 |---|---|---|
-| Eager JS (blocking first paint) | 834.06 kB / 223.81 kB gzip | **270.62 kB / 85.04 kB gzip** |
-| Total JS shipped | 834.06 kB / 223.81 kB gzip | 835.60 kB / 224.98 kB gzip |
+| Eager JS (blocking first paint) | 834.06 kB / 223.81 kB gzip | **270.74 kB / 85.07 kB gzip** |
+| Total JS shipped | 834.06 kB / 223.81 kB gzip | 835.72 kB / 225.01 kB gzip |
 
 **Total JS did not go down** — it rose slightly, mostly from the Three.js 0.159 → 0.185.1 upgrade. The win is entirely on the critical path. Vite still prints its 500 kB chunk-size warning for `three` at 545.56 kB, deliberately: tree-shaking already removes 27% of the library (its own full minified build is 750.94 kB), and what remains is `WebGLRenderer` and the shader library. Raising `chunkSizeWarningLimit` to silence it would mute a real regression detector, so instead guard #11 asserts the *blocking* graph — the entry chunk plus its transitive static imports — stays under 500 kB with `three` absent from it.
 
@@ -146,7 +146,7 @@ $ npm test
 
 $ npm run guards
 PASS — all guards green
-note: blocking JS 270.62 kB of the 500 kB budget (2 chunk(s))
+note: blocking JS 270.74 kB of the 500 kB budget (2 chunk(s))
 
 $ npm run motion-check
 PASS — 15/15 MOTION.md checks green
@@ -241,11 +241,11 @@ A reader refuses an unknown `version` rather than guessing, and reports every va
 
 ## Status
 
-**Shipped:** the designed empty state, the instanced scene and interaction motion, the HUD architecture, the Three.js 0.185 upgrade, the token proxy (mock-verified), the scene-graph interchange format, 74 tests with CI, and the bundle split. Eleven sprints, each closed against acceptance criteria with a screenshot rather than a green build.
+**Live.** The designed empty state, the instanced scene and interaction motion, the HUD architecture, the Three.js 0.185 upgrade, the scene-graph interchange format, 74 tests with CI, the bundle split — and the token proxy, now authenticated against real GitHub rather than only a mock. Eleven sprints, each closed against acceptance criteria with a screenshot rather than a green build.
 
-**Owner-gated:** creating a fine-grained PAT and deploying to Vercel; adding the WAF rate-limit rule; making the OpenGraph URLs absolute once a domain exists; and rewriting commit authorship. These are collected in [S11 of the masterplan](masterplan.md#s11--owner-gated-block-) so that nothing before them was ever blocked.
+**Owner-gated:** linking the Vercel project to this repository so a push releases; the WAF rate-limit rule; and rewriting commit authorship. Tracked in [S11 of the masterplan](masterplan.md#s11--owner-gated-block-) so that nothing before them was ever blocked.
 
-**Next:** deployment is the only thing standing between this and a URL a stranger can click.
+**Next:** the Git integration, because until it exists the most likely future failure is the one that already happened — production and `main` quietly disagreeing about a file the proxy depends on.
 
 ---
 

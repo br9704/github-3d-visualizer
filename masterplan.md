@@ -374,7 +374,7 @@ Commits `3ccba4e` and the warm-up fix.
 ## S10 — Bundle + perf `[x]`
 
 - [x] Dynamic `import()` of the scene module + `manualChunks` isolating `three`. At kickoff: one 731.75 kB chunk (197.00 kB gzip), over Vite's 500 kB warning. By the time this sprint ran, S3's Three upgrade and S8's scene-graph code had taken that single chunk to **834.06 kB (223.81 kB gzip)**.
-- [x] Target: initial chunk under the warning threshold, 3D engine loaded after first paint. **Blocking payload is now 270.62 kB raw / 85.04 kB gzip.**
+- [x] Target: initial chunk under the warning threshold, 3D engine loaded after first paint. **Blocking payload is now 270.74 kB raw / 85.07 kB gzip.**
 - [x] Build-time `modulepreload` for the scene chunks, without which the split is a net regression on any real connection (see below).
 - [x] Profile a synthetic 100+ repo fixture. Record p95 frame time and the honest hardware it ran on.
 - [x] **The "60fps on 100+ repos" line is either evidenced by this measurement or deleted from all copy.** — deleted in S0, replaced in S5 with measured frame work on named hardware. Re-verified, not re-litigated.
@@ -401,7 +401,7 @@ The split cost **944 ms of the hero moment on Fast 3G**. `preloadSceneChunks()` 
 
 **The MOTION.md 2 s gate has been passing since S4 on a check that could not fail.** `motion-check.mjs` loads over unthrottled localhost, where every build arrives in milliseconds. Worse, it hardcodes port 4173 and starts no server of its own: on this machine 4173 was held by a different project, and the suite ran end-to-end against **another application**, with the bright-pixel heuristic scoring that application's page as a rendered scene and passing the first check. So every green "cold load renders a scene within 2s" recorded in S4, S5 and S9 was measured on a link no visitor has, and at least one was measured against the wrong app. `firstpaint.mjs` owns its own server on an OS-assigned free port and throttles; it gates on 4G, because on Fast 3G **both** the split and the single-bundle build miss 2 s — that is pre-existing and not the split's doing.
 
-**Total JS went up, and the win is critical-path only.** 796.74 → 835.60 kB raw, 212.10 → 224.98 kB gzip, mostly S3's Three upgrade. What improved is what a visitor waits on before the HUD paints: **eager gzip 223.81 → 85.04 kB, a 62% cut.** Any copy implying the app got smaller would be unbacked.
+**Total JS went up, and the win is critical-path only.** 796.74 → 835.72 kB raw, 212.10 → 225.01 kB gzip, mostly S3's Three upgrade. What improved is what a visitor waits on before the HUD paints: **eager gzip 223.81 → 85.07 kB, a 62% cut.** Any copy implying the app got smaller would be unbacked.
 
 *Found while closing, none of it on the sprint list:*
 
@@ -427,25 +427,42 @@ Runs after the engineering sprints and before the owner-gated block, so the READ
 - [~] Repo hygiene: `LICENSE` matches `package.json`; `.gitignore` covers process artefacts; the GitHub description and topics stop claiming TypeScript and Tailwind, neither of which this project uses.
 - [~] Push. All of S0–S10 is local-only: `origin/main` is still `5d54521 v5.0`, so the public repo shows the pre-audit README, the 40 process markdown files and the `via.placeholder.com` hero.
 
-**Acceptance:** every number in the README traces to a committed artefact; every image and badge resolves; the Mermaid diagram renders on GitHub; `PROJECT.json` validates and every `source` path exists.
+**Acceptance:** ✅ every number in the README traces to a committed artefact; ✅ every image resolves (200 from `raw.githubusercontent.com`); ✅ `PROJECT.json` validates and every `source` path exists; ✅ repo description and topics no longer claim TypeScript or Tailwind.
 
-**Owner decisions taken (2026-08-15):** finish S10 before this sprint; nothing owner-gated is done, so the README keeps its "not yet deployed" shape and the hero GIF leads; push and fix the repo metadata; hold nothing back from the measured numbers.
+**Owner decisions taken (2026-08-15):** finish S10 before this sprint; push and fix the repo metadata; hold nothing back from the measured numbers. The "nothing owner-gated is done" answer was overtaken mid-sprint — see below.
+
+**As-shipped delta:**
+
+- **The sprint was overtaken by its own subject.** The README was written, committed and pushed stating "Not deployed yet… this file does not pretend there is one" — and the project was deployed roughly twenty minutes later. For that window the repository publicly asserted something false, which is precisely the failure the honesty rules exist to prevent, arriving from the one direction they did not anticipate: the claim was true when written and the world moved. **A documentation pass that runs before the owner-gated block has to be re-verified after it, not merely written carefully.**
+- **`PROJECT.json` carried a contradiction for one commit:** `status: "live"` with an `honest` field still opening "Not deployed, so the token proxy has never made an authenticated request to real GitHub". Both halves had been correct at different times. `ownerGated` likewise still listed the PAT and the deploy. The file now separates `ownerGated` from `ownerGatedDone` so a completed gate is recorded rather than silently dropped.
+- **Production immediately exposed a bug thirteen passing tests could not.** Vercel resolved `api/github/[...path].js` as a *single* dynamic segment rather than a catch-all, so exactly one path segment reached the function. `/api/github/user` and `/api/github/users` returned 403 — the allowlist working correctly — while `/api/github/users/torvalds` returned 404 with `x-vercel-error: NOT_FOUND` and never reached the handler at all. Every endpoint the app actually calls is two segments or more, so **the proxy was 100% dead for real traffic while a single-segment probe looked healthy**. S7's tests exercise the handler; the handler was never invoked. Fixed with a `rewrites` block in `vercel.json` — which existed only in the deploying session's scratchpad copy and had to be brought back into the repo, or the next deploy from `main` would have reintroduced it.
+- **The CI badge went red the first time it ever ran.** CI had never executed on `main` — every prior sprint verified locally — so the badge the README shipped was untested. First contact failed in 14s: `npm ci` refused because `package-lock.json` pinned `esbuild@0.21.5` for Vite 5.4.21 while `package.json` asked for `vitest ^4.1.10`, whose Vite 6/7 line needs `esbuild ^0.28`. `node_modules` held a tree the lockfile never described, and `npm install --package-lock-only` reported no change, so this was a dependency decision rather than a refresh. Resolved by pinning `vitest` to `^2.1.9`, which keeps Vite on 5.4.21, and regenerating the lockfile from scratch. **`npm ci` had never once been run in this project before CI ran it.**
+- **Re-measuring moved the entry chunk 129.80 → 129.92 kB**, so the blocking payload is 270.74 kB / 85.07 kB gzip rather than 270.62 / 85.04. The cause is worth naming precisely, because it was initially misattributed to the Vitest pin: the pin holds Vite at 5.4.21 and changes no output. The extra 0.12 kB is the autocomplete-dismissal fix — real source added to the entry chunk. A dependency change that alters nothing and a source change that alters 0.12 kB are easy to confuse when both land in one session, and only rebuilding tells them apart. Five documents cited the old figures and all five were corrected; the honesty rule is exact match, not approximate.
+- The README's feature inventory (~60 bullets) was replaced by four paragraphs of prose per the documentation-pass structure, and a Mermaid architecture diagram drawn from what exists rather than what was planned.
+
+**Deferred:** verifying that the Mermaid diagram renders on GitHub's own markdown pipeline — it is committed and syntactically valid, but has not been eyeballed on the rendered page. Given this project's history of gates that measure the wrong thing, that is worth an actual look rather than an assumption.
 
 ---
 
-## S11 — Owner-gated block `[ ]`
+## S11 — Owner-gated block `[~]`
 
 Everything requiring Bruno, deliberately collected at the very end so nothing before it blocks.
 
-- [ ] `ask_human`: create a fine-grained PAT with **"Public repositories (read-only)" only** — sufficient for 5,000 req/hr — and add it as a Vercel env var. Never in the repo, never in chat.
-- [ ] Deploy to Vercel. Verify the live URL renders; confirm edge caching via the `x-vercel-cache` header.
+- [x] `ask_human`: create a fine-grained PAT with **"Public repositories (read-only)" only** — sufficient for 5,000 req/hr — and add it as a Vercel env var. Never in the repo, never in chat. **Done 2026-08-15**, verified in production: `x-ratelimit-remaining: 4991`, so the demo is authenticated rather than on the shared 60/hr limit. Token absent from all four client chunks.
+- [x] Deploy to Vercel. Verify the live URL renders; confirm edge caching via the `x-vercel-cache` header. **Done 2026-08-15** — https://github-3d-visualizer.vercel.app. `x-vercel-cache: HIT` observed, `cdn-cache-control: public, s-maxage=1800, stale-while-revalidate=86400`, and the allowlist verified live (`/api/github/user` → 403 *with a real token behind it*).
 - [ ] Add the WAF rate-limit rule in the dashboard.
-- [ ] README: live URL at the very top; re-verify the S6 hero against production.
-- [ ] **`index.html`: add `og:url`, and make `og:image` / `twitter:image` absolute.** They ship relative (`/og.png`) because inventing a domain would be an unbacked claim. Slack and Facebook resolve relative URLs; the spec wants absolute and some scrapers require it, so a pasted link will preview inconsistently until this is done. Landed in S10, must not be forgotten here.
+- [x] README: live URL at the very top; re-verify the S6 hero against production.
+- [x] **`index.html`: add `og:url`, and make `og:image` / `twitter:image` absolute.** **Done 2026-08-15**, once the domain existed.
+- [ ] **Link the Vercel project to `github.com/br9704/github-3d-visualizer`.** Not in the original plan, and it turned out to matter: the first deploy was a CLI upload from a scratchpad copy, so the repo and production diverged immediately — `vercel.json`'s `rewrites` block existed only in the deployed copy, and a deploy from `main` would have reintroduced the routing bug. A push should release.
 - [ ] `record_decision`, then `ask_human` for the final go → `git filter-repo` with a mailmap rewriting **both** bot identities to Bruno across all 48 commits → force-push. Irreversible: hashes change, history shape stays.
 - [ ] CHANGELOG entry; close the masterplan; update the Current-state line in `CLAUDE.md`.
 
 **Acceptance:** a recruiter-clickable URL renders a moving universe within 2s cold; `git log --format='%an'` shows only Bruno Jaamaa.
+
+**Partial delta (2026-08-15), recorded now because the deploy happened mid-Sprint-D rather than after it:**
+
+- **The deploy found a bug the whole S7 test suite was structurally incapable of finding.** Vercel resolved `api/github/[...path].js` as a **single** dynamic segment, not a catch-all. `/api/github/user` and `/api/github/users` returned 403 — reaching the handler, allowlist working — while `/api/github/users/torvalds` returned 404 `x-vercel-error: NOT_FOUND` without ever reaching it. Every endpoint the app actually calls has two segments or more, so the proxy was **dead for 100% of real traffic while a one-segment probe looked healthy**. The 403-vs-404 split is the entire diagnosis: the handler code was never at fault. Fixed with a `rewrites` block in `vercel.json`.
+- **`x-ratelimit-remaining` went from 55 to 4991** once the PAT was set — the difference between the shared unauthenticated limit and an authenticated one, visible in a response header and in no test.
 
 ---
 
@@ -464,3 +481,16 @@ Expanded in place as work happens — never deleted, never rewritten.
 - **2026-08-15** — The favicon has never resolved: `index.html` referenced Vite's scaffold `/vite.svg`, which this repo has never contained. The SPA fallback answers it `200 text/html`, so it fails silently rather than 404ing.
 - **2026-08-15** — A design-system guard that inspects only hex literals does not enforce the palette. Blue (`rgba(59,130,246,…)`) and indigo (`rgba(99,102,241,1)`) survived S1's colour purge and eight sprints of gates inside `rgba()`.
 - **2026-08-15** — Three entries in `languageAliases` (`f#`, `objective-c`, `shell`) point at keys that exist in neither `languageColors` nor `languageCodes`, so they are inert: those languages still render grey. Left as-is and recorded rather than fixed during a documentation sprint; adding the three colours would change the README's verified "17 language-specific colours" to 20.
+- **2026-08-15** — `[...path]` resolved as a **single** dynamic segment on Vercel, not a catch-all. The proxy was dead for every real two-segment path while `/api/github/user` returned a healthy-looking 403. Thirteen passing tests could not see it: they exercise the handler, and the handler was never invoked.
+- **2026-08-15** — The CI badge had never run on `main`. Every sprint through S10 verified locally, so `npm ci` was executed for the first time by CI itself, and failed instantly on a lockfile that had never described the installed tree.
+
+### The pattern this repository actually teaches
+
+Four separate times, a **green gate measured something other than the product**:
+
+1. Headless Chromium has no WebGL, so every automated check screenshotted an empty canvas and passed (S1).
+2. `motion-check.mjs` hardcoded a port and started no server, so the MOTION suite ran end-to-end against **a different application** and scored its page as a rendered scene (S10).
+3. The same suite's binding "2 s cold load" bar ran on unthrottled localhost, where no build can fail it (S10).
+4. Thirteen proxy tests passed against a handler production never invoked (S11).
+
+None of these was a flaky test or a bad assertion. In every case the assertion was correct and the *subject* was wrong. The lesson is not "write more tests" — this repository had ten test reports and zero tests, then 74 tests and four blind gates. It is: **a passing gate is not evidence until you can say what it measured.** Ask what the check would look like if the thing it watches were completely absent. If the answer is "the same", it is not a gate.

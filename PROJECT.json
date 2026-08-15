@@ -18,7 +18,7 @@
   "metrics": [
     {
       "value": "62%",
-      "label": "smaller eager payload, 223.81 to 85.04 kB gzip",
+      "label": "smaller eager payload, 223.81 to 85.07 kB gzip",
       "source": "masterplan.md"
     },
     {
@@ -46,7 +46,7 @@
     "claim": "It built cleanly and rendered a blank white page — because headless Chromium has no WebGL, so every automated check had been screenshotting an empty canvas and passing.",
     "source": "README.md#how-it-was-built"
   },
-  "honest": "Not deployed, so the token proxy has never made an authenticated request to real GitHub and its edge caching has never been observed in production. Frame-time figures come from a single Apple M4 Pro; there is no measurement on integrated graphics. On Fast 3G the first frame lands at 2665 ms, missing the project's own 2 s bar, and the unsplit build misses it too. Commit history is still authored by a bot.",
+  "honest": "The Vercel project is not linked to the GitHub repo — it deploys by CLI upload, so a push does not release and production can silently diverge from main. Frame-time figures come from a single Apple M4 Pro; there is no measurement on integrated graphics, which is what MOTION.md actually asked for. On Fast 3G the first frame lands at 2665 ms, missing the project's own 2 s bar, and the unsplit build misses it too. Commit history is still authored by a bot. Three language aliases are inert, so F#, Objective-C and Shell render grey.",
   "media": {
     "hero": "docs/hero.gif",
     "demo": "docs/hero.gif",
@@ -92,11 +92,14 @@
     ]
   },
   "ownerGated": [
-    "create a fine-grained PAT (public repositories, read-only) and set it in Vercel",
-    "deploy to Vercel and verify edge caching via x-vercel-cache",
+    "link the Vercel project to github.com/br9704/github-3d-visualizer, so a push releases instead of a manual CLI upload",
     "add the WAF rate-limit rule",
-    "make og:image and twitter:image absolute, and add og:url, once a domain exists",
     "rewrite commit authorship from OpenClaw Bot and Claude Code to Bruno Jaamaa (force-push over public history)"
+  ],
+  "ownerGatedDone": [
+    "create a fine-grained PAT and set it in Vercel — done 2026-08-15, verified live at x-ratelimit-remaining 4991",
+    "deploy to Vercel and verify edge caching via x-vercel-cache — done 2026-08-15, HIT observed in production",
+    "make og:image and twitter:image absolute, and add og:url — done 2026-08-15, once the domain existed"
   ],
   "github": {
     "description": "Any GitHub profile rendered as a navigable 3D universe. React, Three.js, WebGL — one instanced draw call per frame and a designed empty state.",

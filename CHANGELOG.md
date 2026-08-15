@@ -56,7 +56,7 @@ deltas are in [`masterplan.md`](masterplan.md).
   distributed; a linear map collapsed nearly every repository onto one coordinate.
 - **Three.js 0.159 → 0.185.1**, dropping `three-stdlib`. Verified by colour
   histogram rather than pixel diff, because the scene auto-orbits.
-- **Bundle split.** Eager payload 223.81 → 85.04 kB gzip. Ships with a build-time
+- **Bundle split.** Eager payload 223.81 → 85.07 kB gzip. Ships with a build-time
   `modulepreload` for the scene chunks, without which the split cost 944 ms to
   first frame on Fast 3G.
 - **Documentation.** 37 process documents deleted, including ten test reports
